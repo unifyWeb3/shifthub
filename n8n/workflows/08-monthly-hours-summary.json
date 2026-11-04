@@ -1,0 +1,396 @@
+{
+  "name": "ShiftHub — 08 · Monthly Hours Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Monthly Hours Summary\n\nOn the 1st of each month at 08:00, totals confirmed hours per staff member for the PREVIOUS month (overnight shifts roll past midnight correctly).\n\n- Writes one row per staff member to the MonthlySummary tab\n- Emails the supervisor a full table report\n- Emails each staff member their own hours (disable via Settings sendStaffCopies=no)",
+        "height": 220,
+        "width": 400,
+        "color": 4
+      },
+      "id": "fe929e5f-4db5-5292-a6ec-7a394d7103ac",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 8 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "4c0589b8-e74f-4e51-a608-9409a21907ce",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "1st of the month, 08:00."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "9612c419-5ded-4128-b19f-1316ca24a06c",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: transpose the key|value Settings tab into one object.\nconst rows = $input.all().map((i) => i.json);\nconst cfg = {};\nfor (const r of rows) {\n  const k = String(r.key ?? '').trim();\n  if (k) cfg[k] = r.value ?? '';\n}\nreturn [{ json: cfg }];\n"
+      },
+      "id": "d810c43a-d27e-492e-9d40-78c30a6a98c9",
+      "name": "Pivot Settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        120
+      ],
+      "notes": "Pivots key|value rows into a settings object."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "803f6e22-37ac-4a44-a4c0-fcaa2e5b64cc",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: group-by-staff with interval math has no native node equivalent.\nconst tz = $('Pivot Settings').first().json.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst prev = now.minus({ months: 1 });\nconst ym = prev.toFormat('yyyy-MM');\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst sums = new Map();\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'CONFIRMED') continue;\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  if (!d.isValid || d.toFormat('yyyy-MM') !== ym) continue;\n  const s = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  let e = DateTime.fromFormat(String(r.date) + ' ' + String(r.endTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  if (e <= s) e = e.plus({ days: 1 });\n  const hrs = e.diff(s, 'minutes').minutes / 60;\n  const k = String(r.staffId || r.staffName || r.email);\n  if (!sums.has(k)) sums.set(k, { month: ym, staffId: r.staffId || '', staffName: r.staffName || '', email: r.email || '', shiftsConfirmed: 0, hours: 0 });\n  const agg = sums.get(k); agg.shiftsConfirmed += 1; agg.hours += hrs;\n}\nconst items = [...sums.values()].map((v) => ({ json: {\n  month: v.month, staffId: v.staffId, staffName: v.staffName, email: v.email,\n  shiftsConfirmed: v.shiftsConfirmed, hoursWorked: Number(v.hours.toFixed(2)),\n  generatedAt: now.toISO(),\n} }));\nreturn items;\n"
+      },
+      "id": "462fe471-ab45-4759-b060-ab0bb393a5bf",
+      "name": "Summarize Per Staff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "notes": "One item per staff member with confirmed hours last month."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "MonthlySummary",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "month": "={{ $json.month }}",
+            "staffId": "={{ $json.staffId }}",
+            "staffName": "={{ $json.staffName }}",
+            "shiftsConfirmed": "={{ $json.shiftsConfirmed }}",
+            "hoursWorked": "={{ $json.hoursWorked }}",
+            "generatedAt": "={{ $json.generatedAt }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "month",
+              "displayName": "month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "staffId",
+              "displayName": "staffId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "staffName",
+              "displayName": "staffName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "shiftsConfirmed",
+              "displayName": "shiftsConfirmed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "hoursWorked",
+              "displayName": "hoursWorked",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "generatedAt",
+              "displayName": "generatedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "valueInputMode": "RAW"
+        }
+      },
+      "id": "1dc3456a-ce14-44b4-905a-7a0b13e9a2dc",
+      "name": "Append Monthly Summary",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1100,
+        200
+      ],
+      "notes": "One row per staff member, per month."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $('Pivot Settings').first().json.sendStaffCopies }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "6192b80d-78e9-44b1-aeec-55f10c1e4604",
+      "name": "Send Staff Copies?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ '[ShiftHub] Your hours for ' + $json.month }}",
+        "message": "={{ 'Hi ' + $json.staffName + ',\\n\\nYour confirmed hours for ' + $json.month + ': ' + $json.hoursWorked + ' hours across ' + $json.shiftsConfirmed + ' shift(s).\\n\\nYour rota sheet holds the line-by-line record. Contact your supervisor for corrections.' }}",
+        "options": {}
+      },
+      "id": "f369b765-2601-4c20-91dc-2334dd7e2ac6",
+      "name": "Email Staff Their Hours",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        400
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: supervisor table report needs the same aggregation, rendered as text; no native node formats tables.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst prev = now.minus({ months: 1 });\nconst ym = prev.toFormat('yyyy-MM');\nconst monthLabel = prev.toFormat('MMMM yyyy');\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst sums = new Map();\nlet totalShifts = 0, totalHours = 0;\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'CONFIRMED') continue;\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  if (!d.isValid || d.toFormat('yyyy-MM') !== ym) continue;\n  const s = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  let e = DateTime.fromFormat(String(r.date) + ' ' + String(r.endTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  if (e <= s) e = e.plus({ days: 1 });\n  const hrs = e.diff(s, 'minutes').minutes / 60;\n  const k = String(r.staffId || r.staffName || r.email);\n  if (!sums.has(k)) sums.set(k, { name: r.staffName || k, shifts: 0, hours: 0 });\n  const agg = sums.get(k); agg.shifts += 1; agg.hours += hrs;\n  totalShifts += 1; totalHours += hrs;\n}\nconst line = '-'.repeat(56);\nconst body = [\n  'ShiftHub - Monthly Hours Summary',\n  '',\n  'Facility: ' + facility,\n  'Month:    ' + monthLabel + ' (' + ym + ')',\n  'Generated: ' + now.toFormat('yyyy-MM-dd HH:mm'),\n  '',\n  line,\n  'Staff'.padEnd(34) + 'Shifts'.padStart(8) + 'Hours'.padStart(12),\n  line,\n];\nfor (const v of [...sums.values()].sort((a, b) => b.hours - a.hours)) {\n  body.push(String(v.name).padEnd(34).slice(0, 33) + String(v.shifts).padStart(8) + v.hours.toFixed(1).padStart(12));\n}\nbody.push(line);\nbody.push('TOTAL'.padEnd(34) + String(totalShifts).padStart(8) + totalHours.toFixed(1).padStart(12));\nbody.push(line);\nbody.push('');\nbody.push('Per-staff hours are also stored in the MonthlySummary tab and emailed to each staff member where sendStaffCopies = yes.');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  subject: '[ShiftHub] Monthly hours summary - ' + monthLabel,\n  message: body.join('\\n'),\n} }];\n"
+      },
+      "id": "20dee7d9-c27e-4216-a0de-6c17155cda1b",
+      "name": "Build Supervisor Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -60
+      ],
+      "notes": "Single formatted table of every staff member's month."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
+        "toEmail": "={{ $json.supervisorEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "5d4b1c92-aee4-4652-a29c-27604fecccf6",
+      "name": "Email Supervisor Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -140
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Pivot Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pivot Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Summarize Per Staff",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Supervisor Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Per Staff": {
+      "main": [
+        [
+          {
+            "node": "Append Monthly Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Staff Copies?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Staff Copies?": {
+      "main": [
+        [
+          {
+            "node": "Email Staff Their Hours",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Supervisor Report": {
+      "main": [
+        [
+          {
+            "node": "Email Supervisor Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

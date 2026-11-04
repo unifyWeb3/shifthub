@@ -1,0 +1,201 @@
+{
+  "name": "ShiftHub — 11 · Dashboard Data API",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Dashboard Data API\n\nGET /webhook/shifthub-dashboard\n\nReturns the next-14-days coverage picture as JSON for the ShiftHub web app (served through the Vercel proxy at /api/dashboard). Also works with curl or any HTTP client.\n\nCORS-friendly JSON; no authentication (read-only, no personal data beyond names/roles/wards).",
+        "height": 210,
+        "width": 400,
+        "color": 4
+      },
+      "id": "9f087dfb-224d-51d7-93b5-45de3286696b",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "shifthub-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3e7329b7-3848-428a-b7f6-5b7aeac12d1a",
+      "name": "Dashboard Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "HTTP entry point. Point the Vercel app (or curl) at this URL."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "0374775e-9ff9-4e1e-bf9b-f195f76a33dc",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: transpose the key|value Settings tab into one object.\nconst rows = $input.all().map((i) => i.json);\nconst cfg = {};\nfor (const r of rows) {\n  const k = String(r.key ?? '').trim();\n  if (k) cfg[k] = r.value ?? '';\n}\nreturn [{ json: cfg }];\n"
+      },
+      "id": "89f98df0-32bb-44b8-bd0b-16e37b13e805",
+      "name": "Pivot Settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        80
+      ],
+      "notes": "Pivots key|value rows into a settings object."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "8705d9fd-eba7-4f82-a200-dc31321b324d",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: nested grouping + coverage math with formatted labels; no native node does this.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst today = now.startOf('day');\nconst horizon = today.plus({ days: 13 });\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst upcoming = [];\nconst byShift = new Map();\nfor (const r of rows) {\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  if (!d.isValid || d < today || d > horizon) continue;\n  if (!byShift.has(r.shiftId)) {\n    byShift.set(r.shiftId, { shiftId: r.shiftId, date: r.date, startTime: r.startTime, endTime: r.endTime,\n      ward: r.ward, role: r.role, requiredCount: Number(r.requiredCount) || 1,\n      confirmed: 0, pending: 0, declined: 0, staff: [] });\n  }\n  const g = byShift.get(r.shiftId);\n  const st = String(r.status).toUpperCase();\n  if (st === 'CONFIRMED') g.confirmed += 1; else if (st === 'DECLINED') g.declined += 1; else g.pending += 1;\n  g.staff.push({ name: r.staffName, status: st, role: r.role });\n}\nlet requiredSlots = 0, confirmedSlots = 0, pendingCount = 0, understaffedCount = 0;\nfor (const g of byShift.values()) {\n  requiredSlots += g.requiredCount;\n  confirmedSlots += Math.min(g.confirmed, g.requiredCount);\n  pendingCount += g.pending;\n  g.missingCount = Math.max(0, g.requiredCount - g.confirmed);\n  g.understaffed = g.missingCount > 0;\n  if (g.understaffed) understaffedCount += 1;\n  const start = DateTime.fromFormat(String(g.date) + ' ' + String(g.startTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  g.minutesUntilStart = start.isValid ? Math.round(start.diff(now, 'minutes').minutes) : null;\n  g.atRisk = g.pending > 0 && g.minutesUntilStart !== null && g.minutesUntilStart <= 195 && g.minutesUntilStart >= -120;\n  upcoming.push(g);\n}\nupcoming.sort((a, b) => (a.date + 'T' + a.startTime).localeCompare(b.date + 'T' + b.startTime));\nconst coverageRate = requiredSlots ? Math.round((confirmedSlots / requiredSlots) * 1000) / 10 : 100;\nconst atRisk = upcoming.filter((g) => g.atRisk);\nreturn [{ json: { response: {\n  facility, generatedAt: now.toISO(), timezone: tz, windowDays: 14,\n  stats: {\n    shifts: byShift.size, requiredSlots, confirmedSlots, coverageRate,\n    pendingConfirmations: pendingCount, understaffedShifts: understaffedCount,\n    atRiskShifts: atRisk.length,\n  },\n  upcoming,\n  atRisk,\n} } }];\n"
+      },
+      "id": "28db4e95-eef7-4c3f-9eaf-41f3a913e1f6",
+      "name": "Compute Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        160
+      ],
+      "notes": "Aggregates the next 14 days of rota into coverage stats + per-shift detail."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "992c9898-60db-4030-ab56-9e8c2a4751d3",
+      "name": "Respond Dashboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        880,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Dashboard Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Pivot Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pivot Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Compute Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Respond Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

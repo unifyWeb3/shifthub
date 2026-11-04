@@ -1,0 +1,108 @@
+{
+  "name": "ShiftHub — 10 · Seed Demo Data",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Seed Demo Data (run once)\n\nPopulates the Rota tab with a realistic SIWES demo set, INCLUDING a shift starting in ~3h05m with no confirmations — the exact case the 3-hour supervisor alert exists for.\n\nRun manually after connecting the Google Sheets credential. Clear the Rota tab first if you re-seed. Do not use in production.",
+        "height": 220,
+        "width": 400,
+        "color": 4
+      },
+      "id": "fb4f063c-3284-51c6-abdd-0230387b25df",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "84692186-2767-4aed-bc0c-ade85388e6ed",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: generates realistic demo rows with RELATIVE dates (today / tomorrow / last month)\n// so the seed works no matter when it's run. Clear the Rota tab first if re-seeding.\nconst tz = 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst pad = (n) => String(n).padStart(2, '0');\nconst hhmm = (dt) => pad(dt.hour) + ':' + pad(dt.minute);\nconst token = () => 'tok-' + Math.random().toString(36).slice(2, 8) + '-' + Date.now().toString(36);\nconst today = now.toFormat('yyyy-MM-dd');\nconst tomorrow = now.plus({ days: 1 }).toFormat('yyyy-MM-dd');\nconst inSixDays = now.plus({ days: 6 }).toFormat('yyyy-MM-dd');\nconst demoStart = now.plus({ hours: 3, minutes: 5 }).startOf('minute');\nconst demoEnd = demoStart.plus({ hours: 12 });\nconst octDay1 = now.minus({ months: 1 }).startOf('month');\nconst oct1 = octDay1.set({ day: 3 }).toFormat('yyyy-MM-dd');\nconst oct2 = octDay1.set({ day: 11 }).toFormat('yyyy-MM-dd');\nconst oct3 = octDay1.set({ day: 19 }).toFormat('yyyy-MM-dd');\nconst rows = [];\nlet seq = 1000;\nconst add = (shiftId, date, startTime, endTime, ward, role, req, staffId, staffName, email, tg, status) => {\n  seq += 1;\n  rows.push({ shiftId, date, startTime, endTime, ward, role, requiredCount: req,\n    staffId, staffName, email, telegramChatId: tg,\n    assignmentId: 'ASG-' + seq, status, confirmToken: token(),\n    reminder1dSent: '', reminder2hSent: '', escalation3hSent: '', understaffedFlag: '' });\n};\n// --- THE 3-HOUR DEMO: a shift starting in ~3h05m, nobody confirmed yet (2 required)\nadd('SHIFT-DEMO-01', today, hhmm(demoStart), hhmm(demoEnd), 'ICU', 'Nurse', 2, 'STF-004', 'Ngozi Eze', 'ngozi.eze@example.com', '100000004', 'PENDING');\nadd('SHIFT-DEMO-01', today, hhmm(demoStart), hhmm(demoEnd), 'ICU', 'Nurse', 2, 'STF-005', 'Kemi Adeyemi', 'kemi.adeyemi@example.com', '100000005', 'PENDING');\n// --- tomorrow morning: one confirmed, one pending (T-1 reminder demo at 18:00)\nadd('SHIFT-DEMO-02', tomorrow, '07:00', '19:00', 'Ward A (Medical)', 'Nurse', 2, 'STF-001', 'Adaeze Nnamdi', 'adaeze.nnamdi@example.com', '100000001', 'CONFIRMED');\nadd('SHIFT-DEMO-02', tomorrow, '07:00', '19:00', 'Ward A (Medical)', 'Nurse', 2, 'STF-002', 'Fatima Bello', 'fatima.bello@example.com', '100000002', 'PENDING');\n// --- tomorrow outpatient: fully covered, normal shift\nadd('SHIFT-DEMO-03', tomorrow, '08:00', '16:00', 'Outpatient', 'Pharmacist', 1, 'STF-007', 'Halima Sule', 'halima.sule@example.com', '100000007', 'CONFIRMED');\n// --- next week: understaffed pair to flag\nadd('SHIFT-DEMO-04', inSixDays, '09:00', '17:00', 'Ward B (Surgical)', 'Care Assistant', 2, 'STF-009', 'Emeka Obi', 'emeka.obi@example.com', '100000009', 'PENDING');\nadd('SHIFT-DEMO-04', inSixDays, '09:00', '17:00', 'Ward B (Surgical)', 'Care Assistant', 2, 'STF-010', 'Chibuike Okoro', 'chibuike.okoro@example.com', '100000010', 'PENDING');\n// --- last month: confirmed shifts so the monthly summary has content\nadd('SHIFT-DEMO-M1', oct1, '07:00', '19:00', 'Ward A (Medical)', 'Nurse', 2, 'STF-001', 'Adaeze Nnamdi', 'adaeze.nnamdi@example.com', '100000001', 'CONFIRMED');\nadd('SHIFT-DEMO-M2', oct2, '19:00', '07:00', 'ICU', 'Nurse', 2, 'STF-001', 'Adaeze Nnamdi', 'adaeze.nnamdi@example.com', '100000001', 'CONFIRMED');\nadd('SHIFT-DEMO-M3', oct3, '07:00', '15:00', 'Maternity', 'Doctor', 1, 'STF-003', 'Tunde Balogun', 'tunde.balogun@example.com', '100000003', 'CONFIRMED');\nadd('SHIFT-DEMO-M3', oct3, '07:00', '15:00', 'Maternity', 'Doctor', 1, 'STF-005', 'Kemi Adeyemi', 'kemi.adeyemi@example.com', '100000005', 'CONFIRMED');\nreturn rows.map((r) => ({ json: r }));\n"
+      },
+      "id": "f3929072-d51a-4e50-a555-44369082102e",
+      "name": "Build Seed Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        160
+      ],
+      "notes": "Relative-date demo rows; token is random per row."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "valueInputMode": "RAW"
+        }
+      },
+      "id": "e95c5965-73ea-4d3e-83ae-a99f605eeba6",
+      "name": "Append Seed Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        160
+      ],
+      "notes": "Appends the demo assignments to the Rota tab."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Seed Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Seed Rows": {
+      "main": [
+        [
+          {
+            "node": "Append Seed Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

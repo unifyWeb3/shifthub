@@ -1,0 +1,471 @@
+{
+  "name": "ShiftHub — 07 · Swap Request Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Swap Request Intake\n\nPublic form endpoint (used by the ShiftHub web app on Vercel). Validates the request, writes it to the SwapRequests tab, notifies the supervisor by email + Telegram, and returns JSON.\n\nPOST fields: name, contact, shiftDate, ward, reason, startTime?, endTime?, role?, targetPreference?, assignmentId?, shiftId?",
+        "height": 220,
+        "width": 400,
+        "color": 4
+      },
+      "id": "f2078c48-ab48-5002-81e1-1fbece07e444",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "swap-request",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b581b7ac-69bc-4fa4-89f4-f1a63274e08b",
+      "name": "Swap Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "HTTP entry point. Point the Vercel app (or curl) at this URL."
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = ($input.first().json.body) || {};\nconst s = (k) => String(b[k] ?? '').trim();\nconst missing = ['name','contact','shiftDate','ward','reason'].filter((f) => !s(f));\nconst requestId = 'SWP-' + Date.now().toString(36).toUpperCase() + '-' + Math.floor(Math.random() * 46656).toString(36).toUpperCase().padStart(3, '0');\nreturn [{ json: {\n  requestId, createdAt: new Date().toISOString(),\n  assignmentId: s('assignmentId'), shiftId: s('shiftId'),\n  date: s('shiftDate'), startTime: s('startTime'), endTime: s('endTime'),\n  ward: s('ward'), role: s('role'),\n  requestorName: s('name'), requestorContact: s('contact'),\n  targetPreference: s('targetPreference'), reason: s('reason'),\n  status: 'OPEN', ok: missing.length === 0, missing,\n} }];\n"
+      },
+      "id": "46936c3c-5b42-4e54-b25e-3d746f2a20a0",
+      "name": "Validate Swap Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        160
+      ],
+      "notes": "Builds the SwapRequests row and flags missing fields."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "9c769c8a-db6a-4494-b86c-10afe8249f5d",
+      "name": "Request Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "ec5205b1-90f5-49da-a248-048889dde0ec",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: pivot Settings inline and merge with the validated swap item into output fields.\nconst cfgRows = $('Read Settings').all().map((i) => i.json);\nconst cfg = {};\nfor (const r of cfgRows) { const k = String(r.key ?? '').trim(); if (k) cfg[k] = r.value ?? ''; }\nconst swap = $('Validate Swap Request').first().json;\nconst notify = [\n  'Swap request ' + swap.requestId,\n  '',\n  swap.requestorName + ' (' + swap.requestorContact + ') wants to swap a shift:',\n  '- Shift:  ' + swap.date + (swap.startTime ? ' ' + swap.startTime + '-' + swap.endTime : ''),\n  '- Unit:   ' + swap.ward + (swap.role ? '  |  Role: ' + swap.role : ''),\n  '- Reason: ' + swap.reason,\n  '- Preferred partner: ' + (swap.targetPreference || 'Any qualified staff member'),\n  '',\n  'Recorded in the SwapRequests tab. Decide, assign in the rota, then tell both staff members.',\n].join('\\n');\nreturn [{ json: {\n  ...swap,\n  supervisorEmail: cfg.supervisorEmail,\n  supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  fromEmail: cfg.fromEmail || '',\n  facilityName: cfg.facilityName || 'the facility',\n  notifyText: notify,\n  subject: '[ShiftHub] Swap request ' + swap.requestId + ' - ' + swap.ward + ' ' + swap.date,\n} }];\n"
+      },
+      "id": "c0f6814a-3d41-4f64-a151-7ed625266863",
+      "name": "Prepare Outputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "notes": "Merges the validated request with supervisor contacts from Settings."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SwapRequests",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "requestId": "={{ $json.requestId }}",
+            "createdAt": "={{ $json.createdAt }}",
+            "assignmentId": "={{ $json.assignmentId }}",
+            "shiftId": "={{ $json.shiftId }}",
+            "date": "={{ $json.date }}",
+            "startTime": "={{ $json.startTime }}",
+            "endTime": "={{ $json.endTime }}",
+            "ward": "={{ $json.ward }}",
+            "role": "={{ $json.role }}",
+            "requestorName": "={{ $json.requestorName }}",
+            "requestorContact": "={{ $json.requestorContact }}",
+            "targetPreference": "={{ $json.targetPreference }}",
+            "reason": "={{ $json.reason }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "requestId",
+              "displayName": "requestId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "createdAt",
+              "displayName": "createdAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "shiftId",
+              "displayName": "shiftId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "startTime",
+              "displayName": "startTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "endTime",
+              "displayName": "endTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ward",
+              "displayName": "ward",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "requestorName",
+              "displayName": "requestorName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "requestorContact",
+              "displayName": "requestorContact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "targetPreference",
+              "displayName": "targetPreference",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "valueInputMode": "RAW"
+        }
+      },
+      "id": "85f09079-2ee9-42b3-95a5-717616b1dd52",
+      "name": "Append Swap Request",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1100,
+        -140
+      ],
+      "notes": "Writes one row to SwapRequests (status OPEN)."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.supervisorEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.notifyText }}",
+        "options": {}
+      },
+      "id": "cb8b7abd-10ef-4bc7-ae43-d75aa6331c58",
+      "name": "Notify Supervisor (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.supervisorTelegramChatId }}",
+        "text": "={{ $json.notifyText }}"
+      },
+      "id": "ff376302-8a15-4775-998a-97a528582c53",
+      "name": "Notify Supervisor (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        140
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, requestId: $json.requestId, message: 'Swap request received. Your supervisor has been notified - track it in the SwapRequests tab.' } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "803f2927-2d9d-49ee-92cd-4638e7326674",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: 'validation_error', message: 'Missing required fields: ' + $json.missing.join(', ') } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "4e5f97d8-022d-409d-84a4-1f171fa21a28",
+      "name": "Respond 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        660,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "Swap Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Swap Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Swap Request": {
+      "main": [
+        [
+          {
+            "node": "Request Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request Valid?": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Prepare Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Outputs": {
+      "main": [
+        [
+          {
+            "node": "Append Swap Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Supervisor (Email)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Supervisor (Telegram)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

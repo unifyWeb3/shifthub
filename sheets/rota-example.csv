@@ -1,0 +1,13 @@
+shiftId,date,startTime,endTime,ward,role,requiredCount,staffId,staffName,email,telegramChatId,assignmentId,status,confirmToken,reminder1dSent,reminder2hSent,escalation3hSent,understaffedFlag
+SHIFT-2026-0001,2026-11-05,07:00,19:00,Ward A (Medical),Nurse,2,STF-001,Adaeze Nnamdi,adaeze.nnamdi@example.com,100000001,ASG-0001,CONFIRMED,seed-token-0001,2026-11-04T18:00:05,2026-11-05T05:00:00,,
+SHIFT-2026-0001,2026-11-05,07:00,19:00,Ward A (Medical),Nurse,2,STF-002,Fatima Bello,fatima.bello@example.com,100000002,ASG-0002,PENDING,seed-token-0002,2026-11-04T18:00:05,,,
+SHIFT-2026-0002,2026-11-05,07:00,15:00,Maternity,Doctor,1,STF-003,Tunde Balogun,tunde.balogun@example.com,100000003,ASG-0003,CONFIRMED,seed-token-0003,2026-11-04T18:00:05,2026-11-05T05:00:00,,
+SHIFT-2026-0003,2026-11-05,19:00,07:00,ICU,Nurse,3,STF-004,Ngozi Eze,ngozi.eze@example.com,100000004,ASG-0004,CONFIRMED,seed-token-0004,2026-11-04T18:00:05,2026-11-05T17:00:00,,
+SHIFT-2026-0003,2026-11-05,19:00,07:00,ICU,Nurse,3,STF-005,Kemi Adeyemi,kemi.adeyemi@example.com,100000005,ASG-0005,PENDING,seed-token-0005,2026-11-04T18:00:05,,
+SHIFT-2026-0003,2026-11-05,19:00,07:00,ICU,Nurse,3,STF-006,Musa Ibrahim,musa.ibrahim@example.com,100000006,ASG-0006,PENDING,seed-token-0006,2026-11-04T18:00:05,,
+SHIFT-2026-0004,2026-11-06,08:00,16:00,Outpatient,Pharmacist,1,STF-007,Halima Sule,halima.sule@example.com,100000007,ASG-0007,CONFIRMED,seed-token-0007,,
+SHIFT-2026-0004,2026-11-06,08:00,16:00,Outpatient,Pharmacist,1,STF-008,Ifeanyi Udeh,ifeanyi.udeh@example.com,100000008,ASG-0008,DECLINED,seed-token-0008,,
+SHIFT-2026-0005,2026-11-06,09:00,17:00,Ward B (Surgical),Care Assistant,2,STF-009,Emeka Obi,emeka.obi@example.com,100000009,ASG-0009,PENDING,seed-token-0009,,
+SHIFT-2026-0005,2026-11-06,09:00,17:00,Ward B (Surgical),Care Assistant,2,STF-010,Chibuike Okoro,chibuike.okoro@example.com,100000010,ASG-0010,PENDING,seed-token-0010,,
+SHIFT-2026-0006,2026-11-10,07:00,19:00,Ward A (Medical),Nurse,2,STF-001,Adaeze Nnamdi,adaeze.nnamdi@example.com,100000001,ASG-0011,PENDING,seed-token-0011,,
+SHIFT-2026-0006,2026-11-10,07:00,19:00,Ward A (Medical),Nurse,2,STF-002,Fatima Bello,fatima.bello@example.com,100000002,ASG-0012,CONFIRMED,seed-token-0012,,

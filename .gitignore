@@ -1,0 +1,25 @@
+# n8n local data (never commit this)
+.n8n/
+*.sqlite
+*.db
+n8n-data/
+
+# node
+node_modules/
+npm-debug.log*
+
+# environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# misc
+*.log
+.vercel

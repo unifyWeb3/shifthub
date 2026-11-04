@@ -1,0 +1,14 @@
+key,value
+facilityName,Federal Medical Centre (SIWES Demo)
+facilityShort,FMC
+supervisorName,Dr. A. Supervisor
+supervisorEmail,supervisor@example.com
+supervisorTelegramChatId,100000000
+staffTelegramDefaultChatId,
+fromEmail,shifthub@example.com
+publicBaseUrl,http://localhost:5678
+sendStaffCopies,yes
+timezone,Africa/Lagos
+understaffedAlertEmail,yes
+monthlySummaryEmail,yes
+swapNotifyTelegram,yes

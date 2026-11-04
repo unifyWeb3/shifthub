@@ -1,0 +1,283 @@
+{
+  "name": "ShiftHub — 01 · Daily 6PM Reminders (T-1 Day)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Daily 6PM Reminders (T-1 Day)\n\nReads the Rota tab, finds every staff member booked for tomorrow whose confirmation is still PENDING, messages them on Telegram and by email, then marks `reminder1dSent`.\n\nTrigger: daily 18:00 (Africa/Lagos).",
+        "height": 220,
+        "width": 380,
+        "color": 4
+      },
+      "id": "db11dad8-49a7-565e-a86e-eb362ecf2ce9",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "f416dd16-fbd0-458a-8d7f-b68d4e06cd50",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "Runs every day at 18:00."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "1930d5aa-f332-4107-a155-a1c91c92b1ab",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: transpose the key|value Settings tab into one object.\nconst rows = $input.all().map((i) => i.json);\nconst cfg = {};\nfor (const r of rows) {\n  const k = String(r.key ?? '').trim();\n  if (k) cfg[k] = r.value ?? '';\n}\nreturn [{ json: cfg }];\n"
+      },
+      "id": "b15a7f49-5f35-469d-a699-578269ae9605",
+      "name": "Pivot Settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        120
+      ],
+      "notes": "Pivots key|value rows into a settings object."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "5cfbe860-a761-4b73-9127-1fa0e9a16b5d",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: builds per-recipient message bodies and needs Luxon date math; IF cannot express\n// 'date == tomorrow && status == PENDING && !reminder1dSent'.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst base = String(cfg.publicBaseUrl || '').replace(/\\/+$/, '');\nconst tomorrow = DateTime.now().setZone(tz).plus({ days: 1 }).toFormat('yyyy-MM-dd');\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst targets = rows.filter((r) =>\n  String(r.date).trim() === tomorrow &&\n  String(r.status).toUpperCase() === 'PENDING' &&\n  !String(r.reminder1dSent || '').trim());\nconst out = [];\nfor (const r of targets) {\n  const link = base && r.confirmToken\n    ? '\\n\\nConfirm in one tap: ' + base + '/webhook/confirm-shift?token=' + encodeURIComponent(r.confirmToken)\n    : '';\n  const reminderText = [\n    'ShiftHub reminder - ' + facility,\n    '',\n    'Hi ' + r.staffName + ', you are booked for TOMORROW:',\n    '- Shift:   ' + r.date + '  ' + r.startTime + ' to ' + r.endTime,\n    '- Unit:    ' + r.ward + '  |  Role: ' + r.role,\n    '- Shift ID: ' + r.shiftId,\n    '',\n    'Reply YES to confirm - by Telegram, or by replying to this email.',\n    'Cannot make it? Contact your supervisor NOW to arrange a swap.',\n  ].join('\\n') + link;\n  out.push({ json: { ...r, reminderText,\n    subject: '[ShiftHub] Tomorrow ' + r.startTime + ' - ' + r.ward + ' (' + r.role + ')' } });\n}\nreturn out;\n"
+      },
+      "id": "ed43d3c8-d3f7-472f-962a-ff00cf2c9738",
+      "name": "Find Tomorrow Unconfirmed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        120
+      ],
+      "notes": "Emits one item per pending staff member for tomorrow; empty list = nobody to remind."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.reminderText }}",
+        "options": {}
+      },
+      "id": "fc82a94d-f376-4783-9670-6e65bcd57e84",
+      "name": "Email Staff (T-1)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        20
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegramChatId }}",
+        "text": "={{ $json.reminderText }}"
+      },
+      "id": "819a1202-a3b5-4793-b2af-bc105e3c151c",
+      "name": "Telegram Staff (T-1)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        200
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignmentId": "={{ $('Find Tomorrow Unconfirmed').item.json.assignmentId }}",
+            "reminder1dSent": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "assignmentId"
+          ],
+          "schema": [
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reminder1dSent",
+              "displayName": "reminder1dSent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "213b5b03-e166-4b8a-857e-f6fc4fa6fc78",
+      "name": "Mark T-1 Reminder Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1340,
+        120
+      ],
+      "notes": "Stamps the row so staff are not double-reminded."
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Pivot Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pivot Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Find Tomorrow Unconfirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Tomorrow Unconfirmed": {
+      "main": [
+        [
+          {
+            "node": "Email Staff (T-1)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Staff (T-1)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark T-1 Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

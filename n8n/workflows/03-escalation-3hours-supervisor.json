@@ -1,0 +1,308 @@
+{
+  "name": "ShiftHub — 03 · 3-Hour Unconfirmed Escalation (Supervisor Alert)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — 3-Hour Unconfirmed Escalation\n\nTHE SIWES 'done when' flow.\n\nEvery 15 minutes, checks for shifts starting in ~3 hours whose confirmation is still PENDING. Alerts the SUPERVISOR by email + Telegram with the names, wards and times, and stamps `escalation3hSent` so the alert goes out once.",
+        "height": 230,
+        "width": 400,
+        "color": 4
+      },
+      "id": "8dc9893a-1068-5e1e-9326-128a9b2932c9",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "*/15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "81a84d60-6fc9-452c-8d76-75f75fc7c023",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "Runs every 15 minutes."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "11df6fa3-c207-4895-b72d-23cfa466eb77",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: transpose the key|value Settings tab into one object.\nconst rows = $input.all().map((i) => i.json);\nconst cfg = {};\nfor (const r of rows) {\n  const k = String(r.key ?? '').trim();\n  if (k) cfg[k] = r.value ?? '';\n}\nreturn [{ json: cfg }];\n"
+      },
+      "id": "ccfbae01-79e9-48d4-a618-24bd3d73cb3c",
+      "name": "Pivot Settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        120
+      ],
+      "notes": "Pivots key|value rows into a settings object."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "431ed91a-253f-48ff-afc1-0f1b4199045b",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: minute-window filter against 'now' + Luxon; native IF cannot do date deltas.\nconst tz = $('Pivot Settings').first().json.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst atRisk = [];\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'PENDING') continue;\n  if (String(r.escalation3hSent || '').trim()) continue;\n  const start = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  if (!start.isValid) continue;\n  const mins = start.diff(now, 'minutes').minutes;\n  if (mins <= 165 || mins > 195) continue;  // ~3h mark; cron runs every 15 min\n  atRisk.push({ ...r, minutesUntilStart: Math.round(mins) });\n}\nreturn atRisk.map((r) => ({ json: r }));\n"
+      },
+      "id": "6d664c1d-b066-41db-b8c8-4ccd2282d9e6",
+      "name": "Select At-Risk Shifts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        120
+      ],
+      "notes": "One item per PENDING assignment starting in 165-195 minutes."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignmentId": "={{ $json.assignmentId }}",
+            "escalation3hSent": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "assignmentId"
+          ],
+          "schema": [
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "escalation3hSent",
+              "displayName": "escalation3hSent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2afe9378-679d-418f-b163-ed4999fa6087",
+      "name": "Mark Escalation Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        240
+      ],
+      "notes": "Stamps the row so the supervisor is alerted only once per shift."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: aggregate N at-risk rows into ONE supervisor alert; Summarize cannot build formatted prose.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst items = $input.all().map((i) => i.json);\nif (!items.length) return [];\nconst lines = items.map((r) =>\n  '- ' + r.staffName + '  |  ' + r.date + ' ' + r.startTime + '-' + r.endTime +\n  '  |  ' + r.ward + '  |  Role: ' + r.role + '  |  starts in ~' + r.minutesUntilStart + ' min  |  Status: UNCONFIRMED');\nconst alertText = [\n  'SHIFT ALERT - UNCONFIRMED SHIFT AT 3-HOUR MARK',\n  '',\n  'Facility: ' + facility,\n  'Time:     ' + DateTime.now().setZone(tz).toFormat('yyyy-MM-dd HH:mm'),\n  '',\n  'The following shift assignment(s) start in about THREE HOURS and are still UNCONFIRMED:',\n  '',\n].concat(lines).concat([\n  '',\n  'ACTION REQUIRED: phone the staff member(s) now. If they cannot attend, arrange a qualified replacement immediately.',\n  'Reply to staff reminders with YES when they confirm; this alert stops once the shift is confirmed in the rota sheet.',\n]).join('\\n');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ALERT: ' + items.length + ' unconfirmed shift(s) at the 3-hour mark',\n  atRiskCount: items.length,\n} }];\n"
+      },
+      "id": "c2a633d9-2af4-4156-b798-cb2d8cd14336",
+      "name": "Build Supervisor Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "notes": "Aggregates all at-risk rows into one email/Telegram."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
+        "toEmail": "={{ $json.supervisorEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.alertText }}",
+        "options": {}
+      },
+      "id": "25428415-a605-4371-995e-091ecf060b9f",
+      "name": "Alert Supervisor (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -100
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.supervisorTelegramChatId }}",
+        "text": "={{ $json.alertText }}"
+      },
+      "id": "a596636b-5578-420f-9246-67350bb04689",
+      "name": "Alert Supervisor (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        80
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Pivot Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pivot Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Select At-Risk Shifts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select At-Risk Shifts": {
+      "main": [
+        [
+          {
+            "node": "Mark Escalation Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Supervisor Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Supervisor Alert": {
+      "main": [
+        [
+          {
+            "node": "Alert Supervisor (Email)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Alert Supervisor (Telegram)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

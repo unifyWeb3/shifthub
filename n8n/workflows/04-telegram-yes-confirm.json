@@ -1,0 +1,340 @@
+{
+  "name": "ShiftHub — 04 · Telegram YES Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Staff Reply YES to Confirm\n\nWhen a staff member messages the bot with YES (or y / ok / confirm), the nearest upcoming PENDING shift assigned to their Telegram chat is marked CONFIRMED in the rota, and the bot replies with the confirmed details.",
+        "height": 200,
+        "width": 380,
+        "color": 4
+      },
+      "id": "c94bfb21-f1dc-5c19-a0ba-85f278c79854",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "2b3e4753-3ef0-4b27-b9e9-6c7a427a45f8",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "Receives every message sent to the ShiftHub bot."
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json.message || $input.first().json;\nconst text = String(msg && msg.text || '').trim().toLowerCase();\nconst chatId = msg && msg.chat && msg.chat.id ? String(msg.chat.id) : (msg && msg.from && msg.from.id ? String(msg.from.id) : '');\nconst isYes = /^(yes|y|confirm|ok|confirmed)\\b/.test(text);\nreturn [{ json: { isYes, chatId, text } }];\n"
+      },
+      "id": "bec7cf4c-5de1-47d3-a955-2d768f2cee43",
+      "name": "Detect Confirmation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        160
+      ],
+      "notes": "Classifies the message as YES-like or not and extracts the chat id."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.isYes }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "3311c0ea-d115-47f0-8837-b66ccef9af92",
+      "name": "Is YES?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        420,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "ce8209f7-f961-40f4-b44a-757b9b6d423d",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: 'nearest upcoming pending shift for this chat' is a sort+filter job no native node does cleanly.\nconst chatId = $('Detect Confirmation').first().json.chatId;\nconst tz = 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst pending = rows\n  .filter((r) => String(r.telegramChatId).trim() === chatId && String(r.status).toUpperCase() === 'PENDING')\n  .map((r) => ({ ...r, start: DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz }) }))\n  .filter((r) => r.start.isValid && r.start.diff(now, 'hours').hours > -12)\n  .sort((a, b) => a.start - b.start);\nconst r = pending[0];\nif (!r) return [{ json: { chatId, found: false } }];\nreturn [{ json: {\n  chatId, found: true, assignmentId: r.assignmentId, ward: r.ward, date: r.date, startTime: r.startTime, endTime: r.endTime,\n  replyText: 'CONFIRMED - ' + r.ward + ', ' + r.date + ' ' + r.startTime + '-' + r.endTime + '. Thank you! See you at your shift.',\n} }];\n"
+      },
+      "id": "68988f6d-8419-4045-b56e-ae4fba631bc1",
+      "name": "Pick Assignment to Confirm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        0
+      ],
+      "notes": "Nearest upcoming PENDING shift matching this chat id."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "ba80ed62-97fa-418a-aa8c-6df938b5caa4",
+      "name": "Found Pending Shift?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignmentId": "={{ $json.assignmentId }}",
+            "status": "CONFIRMED"
+          },
+          "matchingColumns": [
+            "assignmentId"
+          ],
+          "schema": [
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "335bfc0f-925c-47c1-92cf-5fca0916df3a",
+      "name": "Mark Shift Confirmed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        -120
+      ],
+      "notes": "Sets the rota cell to CONFIRMED."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ '✅ ' + $json.replyText }}"
+      },
+      "id": "5a6fcb76-227f-40d2-9ca9-e2180ad59bd7",
+      "name": "Telegram Confirm Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        60
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ 'No pending shift found for you. If you think this is wrong, contact your supervisor.' }}"
+      },
+      "id": "14073486-df60-437a-a736-662007f4c11d",
+      "name": "Telegram No Pending Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        180
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ 'Hi! Reply YES to confirm your next unconfirmed shift. You will get reminders 1 day and 2 hours before every shift.' }}"
+      },
+      "id": "c9cfde19-eb44-43e0-b77a-641b861916b4",
+      "name": "Telegram Help Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        640,
+        320
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Detect Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Is YES?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is YES?": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Help Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Pick Assignment to Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Assignment to Confirm": {
+      "main": [
+        [
+          {
+            "node": "Found Pending Shift?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found Pending Shift?": {
+      "main": [
+        [
+          {
+            "node": "Mark Shift Confirmed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Confirm Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram No Pending Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

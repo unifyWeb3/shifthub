@@ -1,0 +1,283 @@
+{
+  "name": "ShiftHub — 02 · 2 Hours Before Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — 2-Hour Reminders\n\nEvery 15 minutes, finds PENDING assignments starting 105–135 minutes from now and sends a final Telegram + email reminder. Skips anyone already reminded.",
+        "height": 180,
+        "width": 360,
+        "color": 4
+      },
+      "id": "54e3bf5a-e69c-5ac2-979b-66c27b2a1fd3",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "*/15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "fdfa4772-157c-4ac5-b363-b7078f692f25",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "Runs every 15 minutes."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "23452c83-eaf1-49bd-8797-86d60e90cd49",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: transpose the key|value Settings tab into one object.\nconst rows = $input.all().map((i) => i.json);\nconst cfg = {};\nfor (const r of rows) {\n  const k = String(r.key ?? '').trim();\n  if (k) cfg[k] = r.value ?? '';\n}\nreturn [{ json: cfg }];\n"
+      },
+      "id": "c47f1118-2f6e-4fe5-ae76-fecc099e7b29",
+      "name": "Pivot Settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        120
+      ],
+      "notes": "Pivots key|value rows into a settings object."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "1ac1274a-f19a-4892-a70c-b00abdc08448",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: minute-window filter against 'now' + Luxon; native IF cannot do date deltas.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst base = String(cfg.publicBaseUrl || '').replace(/\\/+$/, '');\nconst now = DateTime.now().setZone(tz);\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst out = [];\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'PENDING') continue;\n  if (String(r.reminder2hSent || '').trim()) continue;\n  const start = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  if (!start.isValid) continue;\n  const mins = start.diff(now, 'minutes').minutes;\n  if (mins <= 105 || mins > 135) continue;  // ~2h mark; cron runs every 15 min\n  const link = base && r.confirmToken\n    ? '\\n\\nConfirm in one tap: ' + base + '/webhook/confirm-shift?token=' + encodeURIComponent(r.confirmToken)\n    : '';\n  const reminderText = [\n    'ShiftHub in 2 HOURS - ' + facility,\n    '',\n    'Hi ' + r.staffName + ', your shift starts in about 2 hours:',\n    '- Shift:   ' + r.date + '  ' + r.startTime + ' to ' + r.endTime,\n    '- Unit:    ' + r.ward + '  |  Role: ' + r.role,\n    '- Shift ID: ' + r.shiftId,\n    '',\n    'Reply YES now to confirm - by Telegram, or by replying to this email.',\n    'If you no longer can make it, phone your supervisor immediately.',\n  ].join('\\n') + link;\n  out.push({ json: { ...r, reminderText,\n    subject: '[ShiftHub] Starts in 2h - ' + r.ward + ' ' + r.startTime } });\n}\nreturn out;\n"
+      },
+      "id": "a4b09de8-b5ce-4fad-ae1e-c49fbe778f1c",
+      "name": "Find 2-Hour Shifts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        120
+      ],
+      "notes": "Emits one item per pending staff member whose shift starts in ~2 hours."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.reminderText }}",
+        "options": {}
+      },
+      "id": "9c3f963c-f794-4201-805c-c2509aca624a",
+      "name": "Email Staff (2h)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        20
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegramChatId }}",
+        "text": "={{ $json.reminderText }}"
+      },
+      "id": "daf501c4-8be7-46cf-83f4-1592364e2777",
+      "name": "Telegram Staff (2h)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        200
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignmentId": "={{ $('Find 2-Hour Shifts').item.json.assignmentId }}",
+            "reminder2hSent": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "assignmentId"
+          ],
+          "schema": [
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reminder2hSent",
+              "displayName": "reminder2hSent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "677cb9e3-e2c0-4cc7-9c01-031ff3718788",
+      "name": "Mark 2h Reminder Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1340,
+        120
+      ],
+      "notes": "Stamps the row so staff are not double-reminded."
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Pivot Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pivot Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Find 2-Hour Shifts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find 2-Hour Shifts": {
+      "main": [
+        [
+          {
+            "node": "Email Staff (2h)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Staff (2h)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark 2h Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

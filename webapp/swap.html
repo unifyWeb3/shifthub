@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Request a shift swap at the facility — the supervisor is notified instantly and the request is logged in the rota sheet." />
+  <title>ShiftHub — Request a Swap</title>
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="container">
+    <a class="brand" href="index.html">
+      <img src="assets/img/logo.svg" alt="ShiftHub logo" width="32" height="32" />
+      <span>ShiftHub<small>Every shift, covered</small></span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">Overview</a>
+      <a href="swap.html" class="active">Request a Swap</a>
+      <a href="dashboard.html">Supervisor Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section style="padding-top: 2.4rem;">
+    <div class="container">
+      <div class="kicker">Swap a shift</div>
+      <h2>Request a swap in under a minute.</h2>
+      <p class="sub">Log the request here instead of the WhatsApp group. It lands in the rota sheet's SwapRequests tab, the supervisor is notified by email + Telegram, and you get a reference ID to track it.</p>
+
+      <div class="split" style="margin-top: 1.4rem;">
+        <!-- FORM -->
+        <form class="card" id="swapForm" novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label for="name">Your full name <span class="req">*</span></label>
+              <input id="name" name="name" required autocomplete="name" placeholder="e.g. Adaeze Nnamdi" />
+            </div>
+            <div class="field">
+              <label for="contact">How we reach you <span class="req">*</span></label>
+              <input id="contact" name="contact" required placeholder="email or Telegram @handle" autocomplete="email" />
+            </div>
+            <div class="field">
+              <label for="shiftDate">Shift date <span class="req">*</span></label>
+              <input id="shiftDate" name="shiftDate" type="date" required />
+            </div>
+            <div class="field">
+              <label for="startTime">Start time</label>
+              <input id="startTime" name="startTime" type="time" value="07:00" />
+            </div>
+            <div class="field">
+              <label for="endTime">End time</label>
+              <input id="endTime" name="endTime" type="time" value="19:00" />
+            </div>
+            <div class="field">
+              <label for="ward">Ward / Unit <span class="req">*</span></label>
+              <select id="ward" name="ward" required>
+                <option value="">Select…</option>
+                <option>Ward A (Medical)</option>
+                <option>Ward B (Surgical)</option>
+                <option>ICU</option>
+                <option>Maternity</option>
+                <option>Outpatient</option>
+                <option>Emergency / Casualty</option>
+                <option>Pharmacy</option>
+                <option>Laboratory</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="role">Your role on that shift</label>
+              <select id="role" name="role">
+                <option>Nurse</option>
+                <option>Doctor</option>
+                <option>Care Assistant</option>
+                <option>Pharmacist</option>
+                <option>Lab Scientist</option>
+                <option>Admin / Records</option>
+                <option>Locum / On-call</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="targetPreference">Preferred swap partner</label>
+              <input id="targetPreference" name="targetPreference" placeholder="e.g. Kemi A. (or leave blank for any qualified)" />
+            </div>
+            <div class="field full">
+              <label for="assignmentId">Assignment ID <span class="field-hint" style="display:inline; font-weight:400;">(optional — from your reminder, e.g. ASG-1005)</span></label>
+              <input id="assignmentId" name="assignmentId" class="mono" placeholder="ASG-…" autocomplete="off" />
+            </div>
+            <div class="field full">
+              <label for="reason">Why do you need the swap? <span class="req">*</span></label>
+              <textarea id="reason" name="reason" required placeholder="e.g. Family emergency; sister is in hospital. Available to swap back any weekend after the 15th."></textarea>
+              <span class="field-hint">Be specific — the supervisor approves against clinical cover, not vibes.</span>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; margin-top: 0.4rem;" id="submitBtn">
+            Submit swap request
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <div class="form-status" id="formStatus" role="status" aria-live="polite"></div>
+        </form>
+
+        <!-- SIDE RAIL -->
+        <aside>
+          <div class="card rail-card">
+            <h3>What happens after you submit</h3>
+            <ol class="rail-steps">
+              <li><b>01</b><span>Your request is validated and written to the <span class="mono">SwapRequests</span> tab of the rota sheet with a unique ID (SWP-…).</span></li>
+              <li><b>02</b><span>The supervisor is notified instantly on email and Telegram with your shift, ward, role and reason.</span></li>
+              <li><b>03</b><span>Once approved, the rota rows are updated (or reassigned to your partner) and both of you are told. Until then, your original shift stands.</span></li>
+            </ol>
+          </div>
+          <div class="card rail-card" style="margin-top: 0.9rem;">
+            <h3>Good to know</h3>
+            <ul class="rail-steps">
+              <li><b>A</b><span>A swap is only final when the rota shows it. A "yes" in a chat doesn't cover the ward.</span></li>
+              <li><b>B</b><span>Requests closer to shift time are triaged first — at T-3h the supervisor is already being paged for unconfirmed shifts.</span></li>
+              <li><b>C</b><span>Repeated last-minute swaps trigger a rota review with the charge nurse.</span></li>
+            </ul>
+            <div class="note"><strong>Urgent, under 2 hours?</strong> Don't rely on this form — phone the ward directly, then log the swap here so the record is complete.</div>
+          </div>
+          <a class="btn btn-ghost" href="dashboard.html" style="margin-top: 0.9rem; color: var(--deep); border-color: rgba(13,92,99,.35); width: 100%; justify-content: center;">View the supervisor dashboard →</a>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div><strong>ShiftHub</strong> — SIWES Industrial Trainee Project · <a href="https://github.com/unifyWeb3/shifthub" rel="noopener">Source on GitHub</a></div>
+    <div>Not for clinical emergencies — call the ward directly.</div>
+  </div>
+</footer>
+<script src="assets/js/app.js" defer></script>
+<script src="assets/js/swap.js" defer></script>
+</body>
+</html>

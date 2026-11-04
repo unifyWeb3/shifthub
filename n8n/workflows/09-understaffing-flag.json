@@ -1,0 +1,494 @@
+{
+  "name": "ShiftHub — 09 · Understaffing Check & Flag",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Understaffing Check & Flag\n\nDaily 07:00. Groups the next 14 days of rota rows by shift and compares CONFIRMED headcount against requiredCount.\n\n- Flips understaffedFlag = YES on the affected rota rows\n- Appends one row per short shift to the Flags tab\n- Emails + Telegrams the supervisor the full list",
+        "height": 210,
+        "width": 400,
+        "color": 4
+      },
+      "id": "3b1ec653-7ef0-5aaa-8da3-154034dd1614",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "767cdee9-c581-48fd-bcf3-b81b40f9b11f",
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "Daily at 07:00."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "b3935c07-f01b-4c71-aa4b-8d2c02414cfa",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: transpose the key|value Settings tab into one object.\nconst rows = $input.all().map((i) => i.json);\nconst cfg = {};\nfor (const r of rows) {\n  const k = String(r.key ?? '').trim();\n  if (k) cfg[k] = r.value ?? '';\n}\nreturn [{ json: cfg }];\n"
+      },
+      "id": "65674fd0-5648-4477-9218-a151f56e1f5c",
+      "name": "Pivot Settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        120
+      ],
+      "notes": "Pivots key|value rows into a settings object."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "efda978f-1302-4d8e-959b-8808ed6e252c",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: per-row flags for assignments inside understaffed shifts; Set cannot group.\nconst tz = $('Pivot Settings').first().json.timezone || 'Africa/Lagos';\nconst today = DateTime.now().setZone(tz).startOf('day');\nconst horizon = today.plus({ days: 13 });\nconst rows = $('Read Rota').all().map((i) => i.json).filter((r) => {\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  return d.isValid && d >= today && d <= horizon;\n});\nconst groups = new Map();\nfor (const r of rows) {\n  if (!groups.has(r.shiftId)) groups.set(r.shiftId, { requiredCount: Number(r.requiredCount) || 1, confirmed: 0, members: [] });\n  const g = groups.get(r.shiftId);\n  g.members.push(r);\n  if (String(r.status).toUpperCase() === 'CONFIRMED') g.confirmed += 1;\n}\nconst out = [];\nfor (const g of groups.values()) {\n  if (g.confirmed >= g.requiredCount) continue;\n  for (const r of g.members) {\n    if (String(r.understaffedFlag || '').toUpperCase() === 'YES') continue;\n    out.push({ json: { assignmentId: r.assignmentId, understaffedFlag: 'YES' } });\n  }\n}\nreturn out;\n"
+      },
+      "id": "639a68f5-4f7c-45e0-aa28-6936959071ac",
+      "name": "Find Understaffed Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        280
+      ],
+      "notes": "One item per assignment inside a short shift, for flagging."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignmentId": "={{ $json.assignmentId }}",
+            "understaffedFlag": "YES"
+          },
+          "matchingColumns": [
+            "assignmentId"
+          ],
+          "schema": [
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "understaffedFlag",
+              "displayName": "understaffedFlag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "84f48a29-e543-41d9-8809-4a8ab97a5491",
+      "name": "Flag Rota Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1100,
+        280
+      ],
+      "notes": "Sets understaffedFlag = YES on each affected row."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: one summary alert for the supervisor + one record per understaffed shift for the Flags tab.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst today = DateTime.now().setZone(tz).startOf('day');\nconst horizon = today.plus({ days: 13 });\nconst rows = $('Read Rota').all().map((i) => i.json).filter((r) => {\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  return d.isValid && d >= today && d <= horizon;\n});\nconst byShift = new Map();\nfor (const r of rows) {\n  if (!byShift.has(r.shiftId)) {\n    byShift.set(r.shiftId, { shiftId: r.shiftId, date: r.date, startTime: r.startTime, ward: r.ward, role: r.role,\n      requiredCount: Number(r.requiredCount) || 1, confirmed: 0 });\n  }\n  if (String(r.status).toUpperCase() === 'CONFIRMED') byShift.get(r.shiftId).confirmed += 1;\n}\nconst under = [...byShift.values()]\n  .map((g) => ({ ...g, missingCount: Math.max(0, g.requiredCount - g.confirmed) }))\n  .filter((g) => g.missingCount > 0)\n  .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));\nif (!under.length) return [];\nconst flaggedAt = DateTime.now().setZone(tz).toISO();\nconst flagRows = under.map((g) => ({ flaggedAt, shiftId: g.shiftId, date: g.date, startTime: g.startTime,\n  ward: g.ward, role: g.role, requiredCount: g.requiredCount, confirmedCount: g.confirmed, missingCount: g.missingCount,\n  message: g.confirmed + '/' + g.requiredCount + ' confirmed - ' + g.missingCount + ' short' }));\nconst lines = under.map((g) =>\n  '- ' + g.shiftId + '  |  ' + g.date + ' ' + g.startTime + '  |  ' + g.ward + '  |  ' + g.role +\n  '  |  ' + g.confirmed + '/' + g.requiredCount + ' confirmed (' + g.missingCount + ' short)');\nconst alertText = [\n  'UNDERSTAFFED SHIFTS - next 14 days',\n  '',\n  'Facility: ' + facility,\n  '',\n].concat(lines).concat([\n  '',\n  'Each row above is flagged in the rota sheet and logged in the Flags tab. Assign cover or escalate now.',\n]).join('\\n');\nreturn [{ json: {\n  understaffed: flagRows, count: under.length, facilityName: facility,\n  supervisorEmail: cfg.supervisorEmail, supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ' + under.length + ' understaffed shift(s) in the next 14 days',\n} }];\n"
+      },
+      "id": "f96bc26a-5c64-4666-b7cd-6e952a76cf0c",
+      "name": "Summarize Understaffed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "notes": "One aggregated item: alert text + per-shift records for Flags."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
+        "toEmail": "={{ $json.supervisorEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.alertText }}",
+        "options": {}
+      },
+      "id": "b6dc314b-1009-4a1d-9fb6-4012130f1f56",
+      "name": "Email Supervisor",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -160
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.supervisorTelegramChatId }}",
+        "text": "={{ $json.alertText }}"
+      },
+      "id": "58a6a410-0d2a-4b92-941f-1eaee08591e6",
+      "name": "Telegram Supervisor",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -20
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "understaffed",
+        "options": {}
+      },
+      "id": "96e21a66-9e4a-45bb-86d1-7f972061dc4f",
+      "name": "Split Out Flags",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        130
+      ],
+      "notes": "Explodes the per-shift array into one item per shift."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Flags",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "flaggedAt": "={{ $json.flaggedAt }}",
+            "shiftId": "={{ $json.shiftId }}",
+            "date": "={{ $json.date }}",
+            "startTime": "={{ $json.startTime }}",
+            "ward": "={{ $json.ward }}",
+            "role": "={{ $json.role }}",
+            "requiredCount": "={{ $json.requiredCount }}",
+            "confirmedCount": "={{ $json.confirmedCount }}",
+            "missingCount": "={{ $json.missingCount }}",
+            "message": "={{ $json.message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "flaggedAt",
+              "displayName": "flaggedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "shiftId",
+              "displayName": "shiftId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "startTime",
+              "displayName": "startTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ward",
+              "displayName": "ward",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "requiredCount",
+              "displayName": "requiredCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "confirmedCount",
+              "displayName": "confirmedCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "missingCount",
+              "displayName": "missingCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "valueInputMode": "RAW"
+        }
+      },
+      "id": "8d696336-94e3-4d92-9c14-a92dfb258389",
+      "name": "Append Flags",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1320,
+        130
+      ],
+      "notes": "One row per understaffed shift, for the audit trail."
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Pivot Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pivot Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Find Understaffed Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Summarize Understaffed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Understaffed Rows": {
+      "main": [
+        [
+          {
+            "node": "Flag Rota Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Understaffed": {
+      "main": [
+        [
+          {
+            "node": "Email Supervisor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Supervisor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Out Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Flags": {
+      "main": [
+        [
+          {
+            "node": "Append Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

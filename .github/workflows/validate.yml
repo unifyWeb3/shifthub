@@ -1,0 +1,29 @@
+name: Validate n8n workflows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate workflow JSON structure
+        run: python3 scripts/validate_workflows.py
+
+      - name: Check for committed secrets
+        run: |
+          if grep -rInE '(ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|xox[baprs]-[A-Za-z0-9-]{10,})' \
+             --exclude-dir=.git . ; then
+            echo "::error::possible secret found in the repository"
+            exit 1
+          fi
+          echo "no obvious secrets found"

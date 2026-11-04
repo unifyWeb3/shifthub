@@ -1,0 +1,13 @@
+{
+  "name": "shifthub-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ShiftHub web front end — overview, swap request form and supervisor dashboard for the ShiftHub n8n shift-coverage automation.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "validate": "python3 ../scripts/validate_workflows.py"
+  }
+}

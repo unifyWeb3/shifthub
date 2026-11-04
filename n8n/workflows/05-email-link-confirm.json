@@ -1,0 +1,263 @@
+{
+  "name": "ShiftHub — 05 · Email Confirmation Link",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — One-Tap Email Confirmation\n\nThe link inside every reminder email lands here. Matches the token in the URL against the rota sheet and marks the shift CONFIRMED.\n\nReplying YES to the reminder email works too (see workflow 06) — this endpoint is the zero-typing option.",
+        "height": 200,
+        "width": 400,
+        "color": 4
+      },
+      "id": "568cbbf9-d451-520b-89c8-f383739c17a6",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "confirm-shift",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8e3c5c90-d40a-46e2-8dff-c77485ea488b",
+      "name": "Confirm Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "HTTP entry point. Point the Vercel app (or curl) at this URL."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "35534760-1475-41e7-8c69-2009ab401f18",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const token = ($input.first().json.query && $input.first().json.query.token) || '';\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst r = rows.find((row) => String(row.confirmToken) === String(token));\nif (!r) return [{ json: { found: false } }];\nconst status = String(r.status).toUpperCase();\nreturn [{ json: {\n  found: true, alreadyConfirmed: status === 'CONFIRMED',\n  assignmentId: r.assignmentId, ward: r.ward, date: r.date,\n  startTime: r.startTime, endTime: r.endTime, staffName: r.staffName,\n} }];\n"
+      },
+      "id": "9a81922b-fb21-46e9-9f7b-ab21c88af7ae",
+      "name": "Find By Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "36d3f881-db1e-4582-a399-5bd345362d3f",
+      "name": "Link Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignmentId": "={{ $json.assignmentId }}",
+            "status": "CONFIRMED"
+          },
+          "matchingColumns": [
+            "assignmentId"
+          ],
+          "schema": [
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e727a94a-0ba6-4e63-adc5-29c931277ed9",
+      "name": "Mark Shift Confirmed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        0
+      ],
+      "notes": "Sets the rota cell to CONFIRMED."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ 'Shift confirmed: ' + $json.ward + ' | ' + $json.date + ' ' + $json.startTime + '-' + $json.endTime + '\\nThank you, ' + $json.staffName + '. See you at your shift!' }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "756d3837-c389-46f6-8bc1-93df23eb18d5",
+      "name": "Respond Confirmed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ 'This confirmation link is invalid or the shift was already handled. Please reply YES to your reminder email or contact your supervisor.' }}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "id": "2fa4d781-c06b-4cde-bff2-24b34d4ebc97",
+      "name": "Respond Invalid Link",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        880,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "Confirm Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Find By Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find By Token": {
+      "main": [
+        [
+          {
+            "node": "Link Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link Valid?": {
+      "main": [
+        [
+          {
+            "node": "Mark Shift Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Invalid Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Shift Confirmed": {
+      "main": [
+        [
+          {
+            "node": "Respond Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Live supervisor view: shift coverage for the next 14 days, unconfirmed shifts at the 3-hour mark, understaffed units and pending swaps." />
+  <title>ShiftHub — Supervisor Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="container">
+    <a class="brand" href="index.html">
+      <img src="assets/img/logo.svg" alt="ShiftHub logo" width="32" height="32" />
+      <span>ShiftHub<small>Every shift, covered</small></span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">Overview</a>
+      <a href="swap.html">Request a Swap</a>
+      <a href="dashboard.html" class="active">Supervisor Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section style="padding-top: 2rem;">
+    <div class="container">
+      <div class="dash-head">
+        <div>
+          <div class="kicker">Supervisor dashboard</div>
+          <h2 id="facilityName">Loading facility…</h2>
+          <p class="sub" style="margin-top: 0.15rem;">Coverage for the next 14 days · <span class="mono" id="generatedAt">—</span> · auto-refresh <span class="mono" id="countdown">30</span>s</p>
+        </div>
+        <span class="live-pill"><span class="pulse"></span>LIVE · n8n → Google Sheets</span>
+      </div>
+
+      <div class="demo-banner" id="demoBanner" hidden>
+        <strong>Offline preview.</strong> Showing sample data — set <span class="mono">N8N_WEBHOOK_BASE</span> in Vercel to your n8n instance (or run locally) to see the live rota.
+      </div>
+
+      <div class="risk-banner" id="riskBanner" hidden>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        <div>
+          <strong><span id="riskCount">0</span> shift(s) start within ~3 hours and are UNCONFIRMED.</strong>
+          <div style="font-size: 0.8rem;">The supervisor alert workflow fires every 15 minutes — you were paged by email + Telegram when the T-3h mark was crossed.</div>
+          <ul id="riskList"></ul>
+        </div>
+      </div>
+
+      <div class="stat-cards" id="statCards">
+        <div class="stat-card">
+          <div class="label">Coverage</div>
+          <div class="value"><span id="coverage">–</span>%</div>
+          <div class="hint">confirmed vs required slots</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Shifts (14d)</div>
+          <div class="value" id="statShifts">–</div>
+          <div class="hint">distinct shifts scheduled</div>
+        </div>
+        <div class="stat-card good">
+          <div class="label">Confirmed</div>
+          <div class="value" id="statConfirmed">–</div>
+          <div class="hint">of required slots filled</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Pending</div>
+          <div class="value" id="statPending">–</div>
+          <div class="hint">assignments awaiting YES</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="label">Understaffed</div>
+          <div class="value" id="statUnderstaffed">–</div>
+          <div class="hint">shifts below required headcount</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="shiftsTable">
+          <thead>
+            <tr><th>Date</th><th>Shift</th><th>Ward · Role</th><th>Coverage</th><th>Status</th></tr>
+          </thead>
+          <tbody id="shiftsBody">
+            <tr><td colspan="5" style="text-align:center; color: var(--ink-soft); padding: 2rem;">Loading rota…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="field-hint" style="margin-top: 0.8rem;">Source: Google Sheets rota · n8n workflows “01/02 reminders · 03 escalation · 09 understaffing”. Statuses refresh every 30 seconds while this page is open.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div><strong>ShiftHub</strong> — SIWES Industrial Trainee Project · <a href="https://github.com/unifyWeb3/shifthub" rel="noopener">Source on GitHub</a></div>
+    <div>Not for clinical emergencies — call the ward directly.</div>
+  </div>
+</footer>
+<script src="assets/js/app.js" defer></script>
+<script src="assets/js/dashboard.js" defer></script>
+</body>
+</html>

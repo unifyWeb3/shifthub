@@ -1,0 +1,232 @@
+{
+  "name": "ShiftHub — 06 · Email Reply YES Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Reply YES by Email\n\nWatches the facility inbox over IMAP. A reply of YES (or ok / confirm) from a staff member confirms their next pending shift and sends a confirmation reply.\n\nNeeds an IMAP credential (Gmail app password works): host imap.gmail.com, port 993.",
+        "height": 210,
+        "width": 380,
+        "color": 4
+      },
+      "id": "bda097a8-b0bc-5892-b7c3-2ee839bf0353",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "mailboxName": "INBOX",
+        "postProcessAction": "nothing",
+        "options": {}
+      },
+      "id": "536f9e17-bd50-4a38-86c2-9690c34adb3b",
+      "name": "Inbox Trigger",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "Polls the inbox for new mail (unseen messages)."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "28ba854e-d369-47ae-aa9d-fbda156f3160",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "ef74431a-4b93-42fc-8fbe-bc79a49b9f9a",
+      "name": "Read Rota",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: parsing reply bodies and matching sender -> pending assignment needs regex + sorting.\nconst inbox = $input.all();\nconst cfgRows = $('Read Settings').all().map((i) => i.json);\nconst cfg = {};\nfor (const r of cfgRows) { const k = String(r.key ?? '').trim(); if (k) cfg[k] = r.value ?? ''; }\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst tz = 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst emailRe = /[\\w.+-]+@[\\w-]+\\.[\\w.]+/;\nconst out = [];\nfor (const it of inbox) {\n  const j = it.json;\n  const subject = String(j.subject || '');\n  const body = String(j.textPlain || j.textHtml || j.text || j.snippet || '');\n  if (!/^(yes|y|confirm|ok|confirmed)\\b/i.test((subject + ' ' + body).trim())) continue;\n  const fromRaw = String((j.from && j.from.value && j.from.value[0] && j.from.value[0].address) || j.from || '');\n  const m = fromRaw.match(emailRe);\n  if (!m) continue;\n  const fromAddr = m[0].toLowerCase();\n  const pending = rows\n    .filter((r) => String(r.email).toLowerCase() === fromAddr && String(r.status).toUpperCase() === 'PENDING')\n    .map((r) => ({ ...r, start: DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz }) }))\n    .filter((r) => r.start.isValid && r.start.diff(now, 'hours').hours > -12)\n    .sort((a, b) => a.start - b.start);\n  const r = pending[0];\n  if (!r) continue;\n  out.push({ json: {\n    assignmentId: r.assignmentId, toEmail: fromAddr, fromEmail: cfg.fromEmail || '',\n    replySubject: 'Re: ShiftHub - shift confirmed',\n    replyText: 'Confirmed: ' + r.ward + ' | ' + r.date + ' ' + r.startTime + '-' + r.endTime + '. Thank you! See you at your shift.',\n  } });\n}\nreturn out;\n"
+      },
+      "id": "2fe87cb9-32fe-461f-b3ba-ab06ba0ffd9b",
+      "name": "Match YES Replies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        160
+      ],
+      "notes": "Only items that match a pending shift continue; everything else is dropped."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Rota",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "assignmentId": "={{ $json.assignmentId }}",
+            "status": "CONFIRMED"
+          },
+          "matchingColumns": [
+            "assignmentId"
+          ],
+          "schema": [
+            {
+              "id": "assignmentId",
+              "displayName": "assignmentId",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aeb7316e-114b-4a39-b21f-699e87cb6fa8",
+      "name": "Mark Shift Confirmed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        60
+      ],
+      "notes": "Sets the rota cell to CONFIRMED."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.toEmail }}",
+        "subject": "={{ $json.replySubject }}",
+        "message": "={{ $json.replyText }}",
+        "options": {}
+      },
+      "id": "a38fd30f-0c42-40a7-9189-4c60a70f3861",
+      "name": "Send Confirmation Reply",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        660,
+        260
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    }
+  ],
+  "connections": {
+    "Inbox Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Rota",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rota": {
+      "main": [
+        [
+          {
+            "node": "Match YES Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match YES Replies": {
+      "main": [
+        [
+          {
+            "node": "Mark Shift Confirmed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Confirmation Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

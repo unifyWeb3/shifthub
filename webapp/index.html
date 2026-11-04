@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ShiftHub — n8n-powered shift coverage automation for clinics, care homes and hospitals: one rota sheet, automatic reminders, YES-to-confirm replies, swap requests, a 3-hour unconfirmed-shift supervisor alert, and monthly hours summaries." />
+  <title>ShiftHub — Every shift, covered.</title>
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<header class="nav">
+  <div class="container">
+    <a class="brand" href="index.html">
+      <img src="assets/img/logo.svg" alt="ShiftHub logo" width="32" height="32" />
+      <span>ShiftHub<small>Every shift, covered</small></span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html" class="active">Overview</a>
+      <a href="swap.html">Request a Swap</a>
+      <a href="dashboard.html">Supervisor Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <div class="hero">
+    <div class="container">
+      <span class="eyebrow"><span class="dot"></span>Built with n8n · For clinics, care homes &amp; hospitals</span>
+      <h1>Every shift,<br /><em>covered.</em></h1>
+      <p class="lede">ShiftHub watches the rota so you don't have to. Each staff member gets a reminder 1 day and 2 hours before a shift, confirms with a single <span class="mono">YES</span> — and if a shift is still unconfirmed at the 3-hour mark, the supervisor is alerted automatically. Built for the wards that can't afford an empty station.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="dashboard.html">Open Supervisor Dashboard
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="swap.html">Request a Shift Swap</a>
+      </div>
+      <div class="hero-stats">
+        <div><b>T-1 day</b><span>email + Telegram reminder</span></div>
+        <div><b>T-2 hours</b><span>final reminder before shift</span></div>
+        <div><b>T-3 hours</b><span>unconfirmed → supervisor alert</span></div>
+        <div><b>Monthly</b><span>hours report per staff member</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <section id="problem">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="kicker">The problem</div>
+          <h2>Missed shifts &amp; swap chaos<br />are a staffing problem, not a people problem.</h2>
+        </div>
+      </div>
+      <div class="cards-3">
+        <article class="card">
+          <div class="icon-tile warn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c1422f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <h3>Nobody reminds the 06:30 shift</h3>
+          <p>Night nurses forget, paper rotas get skimmed, WhatsApp threads go unread — and the ward opens understaffed.</p>
+          <div class="stat-inline"><span><b>#1</b> cause of missed shifts: no reliable reminder</span></div>
+        </article>
+        <article class="card">
+          <div class="icon-tile warn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c1422f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+          </div>
+          <h3>Swap requests disappear into chats</h3>
+          <p>"Can you cover Saturday?" gets a thumbs-up at 11pm and a no-show at 07:00. No audit trail, no supervisor visibility, no handover.</p>
+          <div class="stat-inline"><span><b>0</b> trace of most informal swaps today</span></div>
+        </article>
+        <article class="card">
+          <div class="icon-tile warn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c1422f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
+          </div>
+          <h3>Hours are a mystery until payday</h3>
+          <p>Month-end means counting rows of a spreadsheet by hand — overtime, extra shifts and gaps surface too late to act on.</p>
+          <div class="stat-inline"><span><b>Hours</b> never reconciled until it's too late</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section style="background: var(--mist); border-top: 1px solid rgba(18,48,71,.06); border-bottom: 1px solid rgba(18,48,71,.06);">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="kicker">How ShiftHub works</div>
+          <h2>One rota sheet. Six automated steps.</h2>
+          <p class="sub">Everything runs in n8n — the same rota your facility already keeps, now with a brain and a heartbeat. Staff keep replying in chat; the system does the chasing.</p>
+        </div>
+      </div>
+      <div style="position: relative; margin-top: 1.6rem;">
+        <div class="step-rail"></div>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><h4>Rota sheet</h4><p>The rota lives in one Google Sheet — shifts, wards, roles, required headcount, assignment status.</p></div>
+          <div class="step"><div class="step-num">2</div><h4>T-1 day reminder</h4><p>6pm the day before: each assigned staff member gets an email + Telegram reminder automatically.</p></div>
+          <div class="step"><div class="step-num">3</div><h4>T-2 hours reminder</h4><p>A final nudge ~2 hours before the shift starts — the last chance to arrange a swap.</p></div>
+          <div class="step"><div class="step-num">4</div><h4>YES = confirmed</h4><p>Staff reply <span class="mono">YES</span> (Telegram, email reply, or one-tap link) and the rota flips to CONFIRMED instantly.</p></div>
+          <div class="step"><div class="step-num">5</div><h4>3-hour escalation</h4><p>Still unconfirmed at T-3h? The supervisor is alerted — before the ward opens, not after the no-show.</p></div>
+          <div class="step"><div class="step-num">6</div><h4>Summary &amp; flags</h4><p>Monthly hours per staff member, plus daily flags on shifts running below required headcount.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAPABILITIES GRID -->
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="kicker">Inside the box</div>
+          <h2>What ShiftHub ships with</h2>
+        </div>
+      </div>
+      <div class="cards-3">
+        <article class="card">
+          <h3>Reminder engine</h3>
+          <p>Two timed reminders per assignment (T-1 day 18:00, T-2 hours), delivered over both Telegram and email. Duplicate sends are stamped out via the rota itself.</p>
+        </article>
+        <article class="card">
+          <h3>YES confirmation</h3>
+          <p>Three ways to confirm: reply <span class="mono">YES</span> to the Telegram bot, reply to the reminder email (watched over IMAP), or tap the one-time link in the email. Nearest upcoming shift is confirmed, rota updated, confirmation sent back.</p>
+        </article>
+        <article class="card">
+          <h3>3-hour supervisor alert</h3>
+          <p>The heart of this project: every 15 minutes, any shift starting within ~3 hours with a pending assignment pages the supervisor — name, ward, role, minutes to start.</p>
+        </article>
+        <article class="card">
+          <h3>Swap requests</h3>
+          <p>A public form (this site) posts to n8n; the request lands in the SwapRequests tab and the supervisor is notified by email + Telegram with full context and reason.</p>
+        </article>
+        <article class="card">
+          <h3>Understaffing flags</h3>
+          <p>Daily 07:00 sweep of the next 14 days: any shift with fewer CONFIRMED staff than requiredCount gets flagged on the rows, logged to the Flags tab and sent to the supervisor.</p>
+        </article>
+        <article class="card">
+          <h3>Monthly hours summary</h3>
+          <p>On the 1st of each month: confirmed hours per staff member (overnight shifts roll past midnight correctly), a supervisor report, optional per-staff copies, and a MonthlySummary tab.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section style="background: var(--deep-2); color: #e9efe9;">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="kicker" style="color: var(--mint);">Architecture</div>
+          <h2 style="color: #f4f1ea;">Boringly simple, deliberately.</h2>
+          <p class="sub" style="color: rgba(244,241,234,.7);">No custom database, no server code to babysit — n8n orchestrates, Google Sheets is the database, and this static app is the front porch.</p>
+        </div>
+      </div>
+      <div class="arch" aria-label="ShiftHub architecture">
+        <div class="arch-node sheet"><b>Google Sheets</b><span>Rota · Settings · SwapRequests · Flags · MonthlySummary</span></div>
+        <div class="arch-arrow">⇄</div>
+        <div class="arch-node auto"><b>n8n workflows</b><span>reminders · YES handlers · 3h escalation · swaps · flags · monthly summary · dashboard API</span></div>
+        <div class="arch-arrow">⇄</div>
+        <div class="arch-node"><b>Staff channels</b><span>Telegram bot · Email (Gmail SMTP/IMAP)</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node alert"><b>Supervisor alerts</b><span>Email + Telegram at T-3h · understaffing flags · monthly report</span></div>
+      </div>
+      <div class="arch" style="margin-top: 0.6rem;" aria-label="Web app role">
+        <div class="arch-node"><b>This site (Vercel)</b><span>Static overview + swap form + live dashboard; /api/* proxy holds the n8n webhook URL server-side</span></div>
+        <div class="arch-arrow">⇄</div>
+        <div class="arch-node auto"><b>n8n webhooks</b><span>POST /webhook/swap-request · GET /webhook/shifthub-dashboard · GET /webhook/confirm-shift</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div>
+      <strong>ShiftHub</strong> — SIWES Industrial Trainee Project · Built with <a href="https://n8n.io" rel="noopener">n8n</a> + Google Sheets · <a href="https://github.com/unifyWeb3/shifthub" rel="noopener">Source on GitHub</a>
+    </div>
+    <div>Demo data uses fictional staff (example.com). Not for clinical use.</div>
+  </div>
+</footer>
+<script src="assets/js/app.js" defer></script>
+</body>
+</html>

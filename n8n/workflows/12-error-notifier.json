@@ -1,0 +1,175 @@
+{
+  "name": "ShiftHub — 12 · Error Notifier",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Error Notifier\n\nGlobal safety net. Set this workflow as the Error Workflow on every ShiftHub workflow (Settings → Error Workflow) so any failure emails + Telegrams the supervisor with the workflow name, node and error.\n\nA silently failing reminder workflow is how shifts get missed — this makes failures loud.",
+        "height": 220,
+        "width": 420,
+        "color": 4
+      },
+      "id": "fc3e00d5-770d-5c7e-b9ca-df7936c37bf6",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5a156742-f84e-4261-a48e-51f46336ec53",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "Fires when any workflow that names this as its error workflow fails."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "990cc5b2-1198-45ef-8aa9-de3bfdbf3393",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.first().json;\nconst wf = (e.workflow && e.workflow.name) || 'Unknown workflow';\nconst wfId = (e.workflow && e.workflow.id) || '';\nconst node = (e.node && e.node.name) || (e.execution && e.execution.lastNodeExecuted) || '';\nconst errObj = (e.execution && e.execution.error) || e.error || {};\nconst msg = errObj.message || JSON.stringify(e).slice(0, 800);\nconst stack = String(errObj.stack || errObj.description || '').slice(0, 1500);\nreturn [{ json: {\n  workflowName: wf, workflowId: wfId, nodeName: node, errorMessage: String(msg).slice(0, 500),\n  subject: '[ShiftHub] Workflow error in ' + wf,\n  message: [\n    'A ShiftHub workflow failed.',\n    '',\n    'Workflow: ' + wf,\n    'Node:     ' + (node || '(before first node / trigger)'),\n    'Error:    ' + String(msg).slice(0, 500),\n    '',\n    stack ? ('Details:\\n' + stack) : '',\n    '',\n    'Check Executions in n8n for the full trace. Failed confirmations mean staff were NOT reminded or NOT marked confirmed.',\n  ].join('\\n'),\n} }];\n"
+      },
+      "id": "d54570c5-2279-4c87-b1b5-3d5d10ebf3a5",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        40
+      ],
+      "notes": "Builds a readable alert from the error payload."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfgRows = $('Read Settings').all().map((i) => i.json);\nconst cfg = {};\nfor (const r of cfgRows) { const k = String(r.key ?? '').trim(); if (k) cfg[k] = r.value ?? ''; }\nconst err = $('Format Error').first().json;\nreturn [{ json: {\n  ...err,\n  supervisorEmail: cfg.supervisorEmail,\n  supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  fromEmail: cfg.fromEmail || '',\n} }];\n"
+      },
+      "id": "e1385b1b-d5bf-4a19-8c86-88c728614f70",
+      "name": "Attach Supervisor Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        260
+      ],
+      "notes": "Pulls supervisor email/Telegram from Settings."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Attach Supervisor Contacts').item.json.fromEmail }}",
+        "toEmail": "={{ $('Attach Supervisor Contacts').item.json.supervisorEmail }}",
+        "subject": "={{ $('Attach Supervisor Contacts').item.json.subject }}",
+        "message": "={{ $('Attach Supervisor Contacts').item.json.message }}",
+        "options": {}
+      },
+      "id": "f7926f10-70fd-474a-8fe8-91b77113420b",
+      "name": "Email Supervisor (Error)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        660,
+        120
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Attach Supervisor Contacts').item.json.supervisorTelegramChatId }}",
+        "text": "={{ $('Attach Supervisor Contacts').item.json.message }}"
+      },
+      "id": "9092c686-c35e-4eed-aa12-253cd32d9fcb",
+      "name": "Telegram Supervisor (Error)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        660,
+        320
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Attach Supervisor Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Supervisor Contacts": {
+      "main": [
+        [
+          {
+            "node": "Email Supervisor (Error)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Supervisor (Error)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}
