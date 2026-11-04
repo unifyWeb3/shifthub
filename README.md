@@ -49,12 +49,17 @@ system. Full details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
    your spreadsheet ID and attach your Google Sheets, SMTP, IMAP and Telegram credentials.
 4. **Seed demo data** — run workflow **10**, then run workflow **03** to watch the 3-hour
    supervisor alert fire.
-5. **Deploy the web app** — import this repo into Vercel with root directory `webapp` and set
-   `N8N_WEBHOOK_BASE` to your n8n URL.
+5. **Point the deployed app at your n8n instance** — the Vercel project is already live and
+   linked to this repo, so it redeploys on every push. Add the `N8N_WEBHOOK_BASE` environment
+   variable (your n8n public URL) in the Vercel dashboard under **Project → Settings →
+   Environment Variables**, then redeploy.
 
 Full step-by-step: [`docs/SETUP.md`](docs/SETUP.md) · Demo script: [`docs/DEMO-GUIDE.md`](docs/DEMO-GUIDE.md)
 
-## The web app (Vercel)
+## The web app (Vercel) — already deployed
+
+**Live site: <https://shifthub-oxunify.vercel.app>** (production, linked to the GitHub repo — every
+push redeploys it automatically).
 
 | Page | What it does |
 |---|---|
@@ -116,7 +121,8 @@ These need accounts only you can create (each takes 5–15 minutes):
 3. Create a Gmail **App Password** for the SMTP (send) and IMAP (read) credentials.
 4. Paste your spreadsheet ID into the Google Sheets nodes (search the repo for
    `PASTE_GOOGLE_SPREADSHEET_ID`).
-5. Deploy the repo to Vercel and set `N8N_WEBHOOK_BASE`.
+5. Add `N8N_WEBHOOK_BASE` to the Vercel project (it is already deployed and linked to this repo)
+   so the site talks to your n8n instance instead of the offline demo data.
 6. Put your supervisor's email and Telegram chat id in the `Settings` tab.
 
 ## Safety

@@ -201,26 +201,28 @@ workflow that fails silently is how shifts get missed — this makes failures lo
 
 ---
 
-## 9. Deploy the web app to Vercel
+## 9. Point the deployed web app at your n8n instance
 
-1. Push this repo to GitHub (it already is, at `github.com/unifyWeb3/shifthub`).
-2. <https://vercel.com/new> → **Add New → Project** → import the repo.
-3. **Root Directory:** `webapp`  (important — the app and its `api/` functions live there).
-4. Framework preset: **Other**. No build command, no output directory.
-5. **Environment Variables** → add:
-   - `N8N_WEBHOOK_BASE` = your n8n public URL, e.g. `https://abc.trycloudflare.com`
-     (no trailing slash). Leave it empty to run the site in labelled offline-demo mode.
-6. **Deploy**. Vercel gives you a URL like `shifthub.vercel.app`.
+The Vercel project **already exists and is live**:
 
-The Vercel project serves:
+- **URL:** <https://shifthub-oxunify.vercel.app>
+- **Project:** `shifthub` (team `oxunify`), linked to `github.com/unifyWeb3/shifthub` with root
+  directory `webapp`, so every push to `main` redeploys it automatically.
 
-| Route | Purpose |
-|---|---|
-| `/` | project overview |
-| `/swap` | swap request form → `POST /api/swap` → n8n `POST /webhook/swap-request` |
-| `/dashboard` | live coverage → `GET /api/dashboard` → n8n `GET /webhook/shifthub-dashboard` |
+All that is left is the one environment variable that tells the app where n8n lives:
 
-### CLI alternative
+1. <https://vercel.com/oxunifyy/shifthub/settings/environment-variables> → add
+   - Key: `N8N_WEBHOOK_BASE`
+   - Value: your n8n public URL, e.g. `https://abc.trycloudflare.com` — **no trailing slash**
+   - Scope: Production (and Preview if you want previews live too)
+2. Redeploy: **Deployments → ⋯ → Redeploy** (or push any commit).
+3. Open <https://shifthub-oxunify.vercel.app/dashboard> — the amber "Offline preview" banner
+   disappears once the proxy reaches n8n.
+
+Until you set it, the site runs in a clearly-labelled offline demo mode (sample rota, swap form
+returns a demo reference). Nothing is lost, and nothing pretends to be live.
+
+### If you would rather deploy your own copy
 
 ```bash
 npm install -g vercel
@@ -229,6 +231,14 @@ cd webapp
 vercel --prod
 vercel env add N8N_WEBHOOK_BASE production
 ```
+
+The routes it serves:
+
+| Route | Purpose |
+|---|---|
+| `/` | project overview |
+| `/swap` | swap request form → `POST /api/swap` → n8n `POST /webhook/swap-request` |
+| `/dashboard` | live coverage → `GET /api/dashboard` → n8n `GET /webhook/shifthub-dashboard` |
 
 ---
 

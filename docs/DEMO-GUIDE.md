@@ -5,6 +5,8 @@ This is the script to show your supervisor. It ends with the "done when" criteri
 
 ## Before the demo (15 minutes, once)
 
+0. Live site: <https://shifthub-oxunify.vercel.app> — open `/dashboard` in one tab and `/swap` in
+   another.
 1. n8n running, all 12 workflows imported, credentials connected, workflows **active**.
 2. `Settings` tab filled in (especially `supervisorEmail`, `supervisorTelegramChatId`, `fromEmail`).
 3. Vercel app deployed, `N8N_WEBHOOK_BASE` set to your n8n public URL.
