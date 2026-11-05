@@ -265,7 +265,13 @@
             "node": "Telegram Staff (2h)",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Email Staff (2h)": {
+      "main": [
+        [
           {
             "node": "Mark 2h Reminder Sent",
             "type": "main",

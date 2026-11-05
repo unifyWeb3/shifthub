@@ -198,15 +198,15 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "={{ '✅ ' + $json.replyText }}"
+        "chatId": "={{ $('Pick Assignment to Confirm').first().json.chatId }}",
+        "text": "={{ '✅ ' + $('Pick Assignment to Confirm').first().json.replyText }}"
       },
       "id": "5a6fcb76-227f-40d2-9ca9-e2180ad59bd7",
       "name": "Telegram Confirm Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        1300,
+        1540,
         60
       ],
       "notes": "Best-effort Telegram notification; failure does not stop the run.",
@@ -315,16 +315,22 @@
             "node": "Mark Shift Confirmed",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Telegram Confirm Reply",
-            "type": "main",
-            "index": 0
           }
         ],
         [
           {
             "node": "Telegram No Pending Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Shift Confirmed": {
+      "main": [
+        [
+          {
+            "node": "Telegram Confirm Reply",
             "type": "main",
             "index": 0
           }

@@ -188,15 +188,19 @@ workflow that fails silently is how shifts get missed — this makes failures lo
 ## 8. Seed and smoke-test
 
 1. Open **ShiftHub — 10 · Seed Demo Data** → **Execute Workflow**. The `Rota` tab fills with demo
-   shifts, including one that starts in ~3 hours with two unconfirmed staff.
-2. Open **ShiftHub — 03 · 3-Hour Unconfirmed Escalation** → **Execute Workflow**. Within a minute
-   the supervisor receives the escalation email and Telegram message.
-3. Open **ShiftHub — 09 · Understaffing Check & Flag** → **Execute Workflow**. The `Flags` tab
+   shifts, including one that starts in ~3 h 10 min with two unconfirmed staff (`SHIFT-DEMO-01`)
+   and one that starts in ~2 h 10 min with one staff still to confirm (`SHIFT-DEMO-05`).
+2. **Immediately** open **ShiftHub — 03 · 3-Hour Unconfirmed Escalation** → **Execute Workflow**.
+   Within a minute the supervisor receives the escalation email and Telegram message. You have
+   about 25 minutes of head-room after seeding; if you are later than that, run the seed again.
+3. Open **ShiftHub — 02 · 2-Hour Reminders** → **Execute Workflow** → the staff member on
+   `SHIFT-DEMO-05` gets the 2-hour nudge.
+4. Open **ShiftHub — 09 · Understaffing Check & Flag** → **Execute Workflow**. The `Flags` tab
    gains rows and the supervisor gets the understaffing summary.
-4. Open **ShiftHub — 08 · Monthly Hours Summary** → **Execute Workflow**. It reports the
+5. Open **ShiftHub — 08 · Monthly Hours Summary** → **Execute Workflow**. It reports the
    *previous* month; the seed data includes last-month confirmed shifts so you get a real table.
-5. Message the bot `YES` → the rota row flips to `CONFIRMED` (workflow 04).
-6. Submit the swap form (next section) → a row appears in `SwapRequests` and the supervisor is
+6. Message the bot `YES` → the rota row flips to `CONFIRMED` (workflow 04).
+7. Submit the swap form (next section) → a row appears in `SwapRequests` and the supervisor is
    notified (workflow 07).
 
 ---
@@ -251,6 +255,7 @@ The routes it serves:
 | Telegram trigger receives nothing | Bot token wrong, staff never pressed **Start**, or n8n's public URL changed after a tunnel restart — re-save the Telegram Trigger node. |
 | No email arriving | Gmail app password instead of the account password; check the workflow's **Executions** log for the SMTP error. |
 | Duplicate reminders | `reminder1dSent` / `reminder2hSent` cells are empty — the sheet write failed, so the stamp was not saved. Check the Sheets node's output. |
+| "no shifts at risk" from workflow 03 | You are more than ~25 minutes after seeding (the demo shift has left the 165–195 minute window) or the row is already confirmed/stamped. Run the seed again, then workflow 03. |
 | Cron fires at the wrong hour | The n8n instance timezone is not `Africa/Lagos`: set `TZ=Africa/Lagos` (and `GENERIC_TIMEZONE=Africa/Lagos`) before starting n8n. |
 | Confirm link says "invalid" | The token in the email does not match `confirmToken` in the row (re-send reminders after fixing the cell). |
 | Dashboard shows "Offline preview" | `N8N_WEBHOOK_BASE` is empty or wrong in Vercel — redeploy after setting it. |

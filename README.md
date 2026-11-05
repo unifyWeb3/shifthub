@@ -22,7 +22,7 @@ units and total hours every month.
 | Reminder 2 hours before | Workflow **02** — cron `*/15 * * * *`, email + Telegram |
 | `YES` reply to confirm | Workflows **04** (Telegram), **06** (email reply via IMAP), **05** (one-tap email link) |
 | Swap request form | Workflow **07** + the Vercel app's `/swap` page |
-| Supervisor alert 3 hours before an unconfirmed shift | Workflow **03** — the headline flow |
+| Supervisor alert 3 hours before an unconfirmed shift | Workflow **03** — the headline flow. The alert is sent *before* the row is stamped, so a failed send is retried rather than silently dropped. |
 | Monthly hours summary | Workflow **08** — per-staff hours, supervisor report, `MonthlySummary` tab |
 | Flag shifts with too few staff | Workflow **09** — daily 07:00 sweep, `understaffedFlag` + `Flags` tab + supervisor alert |
 | Bonus: failures are never silent | Workflow **12** — error notifier wired as the error workflow on the others |

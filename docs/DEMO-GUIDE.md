@@ -11,9 +11,12 @@ This is the script to show your supervisor. It ends with the "done when" criteri
 2. `Settings` tab filled in (especially `supervisorEmail`, `supervisorTelegramChatId`, `fromEmail`).
 3. Vercel app deployed, `N8N_WEBHOOK_BASE` set to your n8n public URL.
 4. Telegram: your supervisor has pressed **Start** on the bot; you know their chat id.
-5. Run **10 · Seed Demo Data** once (clears nothing — delete the `Rota` rows first if you are
-   re-seeding, otherwise you get duplicates).
-6. Have your phone ready with the supervisor's Telegram chat open and the Gmail inbox open.
+5. Run **10 · Seed Demo Data** once (it clears nothing — delete the `Rota` rows first if you are
+   re-seeding, otherwise you get duplicate demo rows).
+6. **Immediately** execute **03 · 3-Hour Unconfirmed Escalation**. The seeded demo shift starts in
+   ~3 h 10 min and the escalation window is 165–195 minutes, so you have about **25 minutes** of
+   head-room. If you are later than that, run the seed again and it creates a fresh shift.
+7. Have your phone ready with the supervisor's Telegram chat open and the Gmail inbox open.
 
 ---
 
@@ -38,8 +41,11 @@ Open the **Overview** page on the deployed site. Point at the 3-hour escalation 
    - the supervisor's phone buzzes with the Telegram reminder,
    - the staff email arrives,
    - the rota cell `reminder1dSent` now has a timestamp.
-5. Say: *"At 2 hours before the shift, workflow 02 sends the final nudge — same logic, 15-minute
-   check."*
+5. Now show the **2-hour** reminder. `SHIFT-DEMO-05` (Emergency, one staff still PENDING) starts
+   in ~2 hours 10 minutes, so open **02 · 2-Hour Reminders** and execute it: Yusuf Lawal gets the
+   final nudge and `reminder2hSent` is stamped.
+6. Say: *"Two nudges — one the evening before, one two hours out — and both are stamped in the
+   sheet, so nobody is ever chased twice."*
 
 ---
 
@@ -57,7 +63,7 @@ Open the **Overview** page on the deployed site. Point at the 3-hour escalation 
 
 ## Minute 7–9 · THE HEADLINE: unconfirmed at the 3-hour mark
 
-1. Open the `Rota` tab and show `SHIFT-DEMO-01` — **today**, ICU, starts in ~3 hours,
+1. Open the `Rota` tab and show `SHIFT-DEMO-01` — **today**, ICU, starts in ~3 hours 10 minutes,
    `requiredCount = 2`, both assignments still `PENDING`.
 2. Open **03 · 3-Hour Unconfirmed Escalation** and point at the code: it selects PENDING
    assignments whose start time is 165–195 minutes away (the 15-minute cron means the window is
@@ -65,10 +71,11 @@ Open the **Overview** page on the deployed site. Point at the 3-hour escalation 
 3. **Execute the workflow.**
 4. Within seconds the supervisor receives:
    - an email titled `[ShiftHub] ALERT: 2 unconfirmed shift(s) at the 3-hour mark`, listing
-     Ngozi Eze and Kemi Adeyemi, the ward, role, shift times and "starts in ~180 min",
+     Ngozi Eze and Kemi Adeyemi, the ward, role, shift times and "starts in ~190 min",
    - the same message on Telegram.
 5. Show the rota: `escalation3hSent` now has a timestamp, so the alert fires **once**, not every
-   15 minutes.
+   15 minutes. (The stamp is written *after* the alert is sent, so a failed send is retried on the
+   next 15-minute run instead of being lost.)
 6. Confirm it in the dashboard: the **red banner** appears —
    *"2 shift(s) start within ~3 hours and are UNCONFIRMED"* — and the supervisor alert is the
    documented action.
@@ -98,7 +105,7 @@ Open the **Overview** page on the deployed site. Point at the 3-hour escalation 
 |---|---|
 | Telegram message didn't arrive | Bot token / user didn't press Start → fall back to showing the email, then re-run the workflow after they press Start. |
 | No email | Check the workflow's Executions log for the SMTP error; usually the app password expired. |
-| The escalation says "no shifts at risk" | You re-seeded after the shift time passed, or the row is `CONFIRMED`. Run the seed again (new row starts in ~3h) and execute workflow 03 again. |
+| The escalation says "no shifts at risk" | You are more than ~25 minutes after seeding (the seeded shift has moved out of the 165–195 minute window), or the row is already `CONFIRMED` / already stamped. Run the seed again — it creates a fresh shift starting in ~3 h 10 min — then execute workflow 03 again. |
 | Dashboard says "Offline preview" | `N8N_WEBHOOK_BASE` unset in Vercel → set it and redeploy, or demo the workflow JSON instead. |
 
 ## Screenshots worth taking for your SIWES report

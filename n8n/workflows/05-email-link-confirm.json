@@ -159,7 +159,7 @@
     {
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={{ 'Shift confirmed: ' + $json.ward + ' | ' + $json.date + ' ' + $json.startTime + '-' + $json.endTime + '\\nThank you, ' + $json.staffName + '. See you at your shift!' }}",
+        "responseBody": "={{ 'Shift confirmed: ' + $('Find By Token').first().json.ward + ' | ' + $('Find By Token').first().json.date + ' ' + $('Find By Token').first().json.startTime + '-' + $('Find By Token').first().json.endTime + '\\nThank you, ' + $('Find By Token').first().json.staffName + '. See you at your shift!' }}",
         "options": {
           "responseCode": 200
         }

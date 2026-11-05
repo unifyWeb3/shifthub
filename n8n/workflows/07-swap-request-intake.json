@@ -352,7 +352,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { ok: true, requestId: $json.requestId, message: 'Swap request received. Your supervisor has been notified - track it in the SwapRequests tab.' } }}",
+        "responseBody": "={{ { ok: true, requestId: $('Prepare Outputs').first().json.requestId, message: 'Swap request received and recorded. Your supervisor has been notified - track it in the SwapRequests tab.' } }}",
         "options": {
           "responseCode": 200
         }
@@ -440,11 +440,6 @@
       "main": [
         [
           {
-            "node": "Append Swap Request",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Notify Supervisor (Email)",
             "type": "main",
             "index": 0
@@ -454,6 +449,17 @@
             "type": "main",
             "index": 0
           },
+          {
+            "node": "Append Swap Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Swap Request": {
+      "main": [
+        [
           {
             "node": "Respond 200",
             "type": "main",

@@ -156,10 +156,10 @@
     },
     {
       "parameters": {
-        "fromEmail": "={{ $json.fromEmail }}",
-        "toEmail": "={{ $json.toEmail }}",
-        "subject": "={{ $json.replySubject }}",
-        "message": "={{ $json.replyText }}",
+        "fromEmail": "={{ $('Match YES Replies').item.json.fromEmail }}",
+        "toEmail": "={{ $('Match YES Replies').item.json.toEmail }}",
+        "subject": "={{ $('Match YES Replies').item.json.replySubject }}",
+        "message": "={{ $('Match YES Replies').item.json.replyText }}",
         "options": {}
       },
       "id": "a38fd30f-0c42-40a7-9189-4c60a70f3861",
@@ -167,7 +167,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
       "position": [
-        660,
+        880,
         260
       ],
       "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
@@ -214,7 +214,13 @@
             "node": "Mark Shift Confirmed",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Mark Shift Confirmed": {
+      "main": [
+        [
           {
             "node": "Send Confirmation Reply",
             "type": "main",

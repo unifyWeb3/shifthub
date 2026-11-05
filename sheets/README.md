@@ -23,7 +23,7 @@ shiftId,date,startTime,endTime,ward,role,requiredCount,staffId,staffName,email,t
 | `staffId` / `staffName` | Staff identity | `STF-001`, `Adaeze Nnamdi` |
 | `email` | Used for reminders + YES-by-email | `adaeze.nnamdi@example.com` |
 | `telegramChatId` | Numeric Telegram chat id (get it from @userinfobot) | `100000001` |
-| `assignmentId` | Unique row id — the update key for every write | `ASG-1001` |
+| `assignmentId` | Unique row id — the update key for every write. Must be unique in the sheet: the workflows match on it when they stamp a row. | `ASG-K3F9A2-1001` |
 | `status` | `PENDING`, `CONFIRMED`, `DECLINED` or `SWAPPED` | `PENDING` |
 | `confirmToken` | Random token used by the one-tap email confirmation link | `tok-a1b2c3d4` |
 | `reminder1dSent` | Timestamp of the T-1 day reminder | `2026-11-04T18:00:05` |
@@ -55,7 +55,7 @@ shiftId,date,startTime,endTime,ward,role,requiredCount,staffId,staffName,email,t
 | File | Use |
 |---|---|
 | `settings.csv` | Import into the `Settings` tab, then edit the values |
-| `rota-example.csv` | 12 worked example rows — copy them into `Rota` to see the shape, or ignore them and use workflow 10 to seed demo data with today's dates |
+| `rota-example.csv` | 12 worked example rows — copy them into `Rota` to see the shape, or ignore them and use workflow 10 to seed demo data with today's dates. The seed adds a short run tag to every `assignmentId` so that re-seeding never creates two rows with the same key. |
 | `swap-requests-headers.csv`, `flags-headers.csv`, `monthly-summary-headers.csv` | Header-only imports for the three write tabs |
 
 ## Importing a CSV into a tab

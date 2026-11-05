@@ -116,6 +116,68 @@
     },
     {
       "parameters": {
+        "jsCode": "// Why Code: aggregate N at-risk rows into ONE supervisor alert; Summarize cannot build formatted prose.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst items = $input.all().map((i) => i.json);\nif (!items.length) return [];\nconst lines = items.map((r) =>\n  '- ' + r.staffName + '  |  ' + r.date + ' ' + r.startTime + '-' + r.endTime +\n  '  |  ' + r.ward + '  |  Role: ' + r.role + '  |  starts in ~' + r.minutesUntilStart + ' min  |  Status: UNCONFIRMED');\nconst alertText = [\n  'SHIFT ALERT - UNCONFIRMED SHIFT AT 3-HOUR MARK',\n  '',\n  'Facility: ' + facility,\n  'Time:     ' + DateTime.now().setZone(tz).toFormat('yyyy-MM-dd HH:mm'),\n  '',\n  'The following shift assignment(s) start in about THREE HOURS and are still UNCONFIRMED:',\n  '',\n].concat(lines).concat([\n  '',\n  'ACTION REQUIRED: phone the staff member(s) now. If they cannot attend, arrange a qualified replacement immediately.',\n  'Reply to staff reminders with YES when they confirm; this alert stops once the shift is confirmed in the rota sheet.',\n]).join('\\n');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ALERT: ' + items.length + ' unconfirmed shift(s) at the 3-hour mark',\n  atRiskCount: items.length,\n  assignments: items.map((r) => ({ assignmentId: r.assignmentId, staffName: r.staffName,\n    date: r.date, startTime: r.startTime, endTime: r.endTime, ward: r.ward, role: r.role })),\n} }];\n"
+      },
+      "id": "c2a633d9-2af4-4156-b798-cb2d8cd14336",
+      "name": "Build Supervisor Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "notes": "Aggregates all at-risk rows into one email/Telegram and keeps the per-row ids."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.supervisorTelegramChatId }}",
+        "text": "={{ $json.alertText }}"
+      },
+      "id": "a596636b-5578-420f-9246-67350bb04689",
+      "name": "Alert Supervisor (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        -100
+      ],
+      "notes": "Best-effort Telegram notification; failure does not stop the run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
+        "toEmail": "={{ $json.supervisorEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.alertText }}",
+        "options": {}
+      },
+      "id": "25428415-a605-4371-995e-091ecf060b9f",
+      "name": "Alert Supervisor (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        60
+      ],
+      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Why Code: the Email node replaces the item payload and the native Split Out node can only read\n// fields from its own input. Re-expanding the rows from the aggregation node keeps the\n// 'stamp only after the alert was delivered' ordering without losing the per-row assignment ids.\nconst alert = $('Build Supervisor Alert').first().json;\nconst rows = Array.isArray(alert.assignments) ? alert.assignments : [];\nreturn rows.map((r) => ({ json: r }));\n"
+      },
+      "id": "5f0d4c7a-1b3e-4c8a-9f52-6d1e2a7b4c30",
+      "name": "Restore At-Risk Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        60
+      ],
+      "notes": "Re-expands the at-risk rows so each one can be stamped after the alert was delivered."
+    },
+    {
+      "parameters": {
         "operation": "update",
         "documentId": {
           "__rl": true,
@@ -168,58 +230,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        1120,
-        240
+        1820,
+        60
       ],
       "notes": "Stamps the row so the supervisor is alerted only once per shift."
-    },
-    {
-      "parameters": {
-        "jsCode": "// Why Code: aggregate N at-risk rows into ONE supervisor alert; Summarize cannot build formatted prose.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst items = $input.all().map((i) => i.json);\nif (!items.length) return [];\nconst lines = items.map((r) =>\n  '- ' + r.staffName + '  |  ' + r.date + ' ' + r.startTime + '-' + r.endTime +\n  '  |  ' + r.ward + '  |  Role: ' + r.role + '  |  starts in ~' + r.minutesUntilStart + ' min  |  Status: UNCONFIRMED');\nconst alertText = [\n  'SHIFT ALERT - UNCONFIRMED SHIFT AT 3-HOUR MARK',\n  '',\n  'Facility: ' + facility,\n  'Time:     ' + DateTime.now().setZone(tz).toFormat('yyyy-MM-dd HH:mm'),\n  '',\n  'The following shift assignment(s) start in about THREE HOURS and are still UNCONFIRMED:',\n  '',\n].concat(lines).concat([\n  '',\n  'ACTION REQUIRED: phone the staff member(s) now. If they cannot attend, arrange a qualified replacement immediately.',\n  'Reply to staff reminders with YES when they confirm; this alert stops once the shift is confirmed in the rota sheet.',\n]).join('\\n');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ALERT: ' + items.length + ' unconfirmed shift(s) at the 3-hour mark',\n  atRiskCount: items.length,\n} }];\n"
-      },
-      "id": "c2a633d9-2af4-4156-b798-cb2d8cd14336",
-      "name": "Build Supervisor Alert",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1120,
-        0
-      ],
-      "notes": "Aggregates all at-risk rows into one email/Telegram."
-    },
-    {
-      "parameters": {
-        "fromEmail": "={{ $('Pivot Settings').first().json.fromEmail }}",
-        "toEmail": "={{ $json.supervisorEmail }}",
-        "subject": "={{ $json.subject }}",
-        "message": "={{ $json.alertText }}",
-        "options": {}
-      },
-      "id": "25428415-a605-4371-995e-091ecf060b9f",
-      "name": "Alert Supervisor (Email)",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2,
-      "position": [
-        1360,
-        -100
-      ],
-      "notes": "SMTP send (Gmail app password). All ShiftHub mails go from the facility mailbox."
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.supervisorTelegramChatId }}",
-        "text": "={{ $json.alertText }}"
-      },
-      "id": "a596636b-5578-420f-9246-67350bb04689",
-      "name": "Alert Supervisor (Telegram)",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [
-        1360,
-        80
-      ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
     }
   ],
   "connections": {
@@ -271,11 +285,6 @@
       "main": [
         [
           {
-            "node": "Mark Escalation Sent",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Build Supervisor Alert",
             "type": "main",
             "index": 0
@@ -287,12 +296,34 @@
       "main": [
         [
           {
-            "node": "Alert Supervisor (Email)",
+            "node": "Alert Supervisor (Telegram)",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Alert Supervisor (Telegram)",
+            "node": "Alert Supervisor (Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Supervisor (Email)": {
+      "main": [
+        [
+          {
+            "node": "Restore At-Risk Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore At-Risk Rows": {
+      "main": [
+        [
+          {
+            "node": "Mark Escalation Sent",
             "type": "main",
             "index": 0
           }

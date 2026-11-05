@@ -74,10 +74,44 @@ Two windows, both tolerant of the 15-minute cron cadence:
 A shift therefore enters the 3-hour window for roughly two consecutive cron runs, and the
 `escalation3hSent` stamp makes sure the supervisor is told **once**, not twice.
 
+The demo seed is built around those windows: `SHIFT-DEMO-01` starts **3 h 10 min** after the
+seed runs (190 minutes — inside the 165–195 minute window with ~25 minutes of head-room for a
+slow demo) and `SHIFT-DEMO-05` starts **2 h 10 min** after it (130 minutes — inside the
+105–135 minute reminder window). Both take their *date* from their own start time, so they stay
+correct when the shift begins after midnight.
+
 All date maths uses Luxon (`DateTime`) inside Code nodes, in the facility timezone from the
 `Settings` tab (`Africa/Lagos` by default). Overnight shifts (`19:00 → 07:00`) are handled by
 adding 24 hours when the end time is not after the start time — this matters for both the
 reminder windows and the monthly hours total.
+
+## Delivery before bookkeeping
+
+Every workflow that changes state follows the same order: **select the work, tell the human,
+then stamp it as done.** The stamp (`reminder1dSent`, `reminder2hSent`, `escalation3hSent`) is
+written *last*, after the message has actually gone out.
+
+```
+select rows → send email → stamp the sheet
+```
+
+If the send fails, the workflow errors before the stamp, the error workflow reports the failure,
+and the next 15-minute cron run tries again. The opposite order (stamp and send in parallel)
+would quietly mark a shift as "already reminded" even though no reminder was ever delivered —
+the exact failure mode where a missed shift disappears without anyone noticing.
+
+The same rule applies to the confirmation workflows: the rota cell is set to `CONFIRMED`
+*before* the bot replies "✅ confirmed" or the confirmation page is shown, so a staff member is
+never told they are confirmed when the sheet still says `PENDING`.
+
+Two n8n details make this necessary rather than academic:
+
+- The **Email Send** node replaces the item payload with the SMTP response, so a node placed
+  after it must read the original row through a paired-item reference
+  (`$('Find By Token').first().json.ward`) instead of `$json.ward`.
+- The **Google Sheets** node in column-mapping mode likewise returns only the mapped columns.
+  Workflow 03 re-expands its rows with a small Code node (`Restore At-Risk Rows`) for exactly
+  this reason, so the per-row `assignmentId` survives the trip through the email node.
 
 ## Design decisions
 
