@@ -76,7 +76,7 @@ breaking.
 ```
 n8n/
   workflows/        12 importable workflow JSON files (no credentials inside)
-  README.md         import order, credential matrix, activation checklist
+  README.md         import order, credential matrix, publishing checklist
 sheets/
   settings.csv      ready-to-import Settings tab
   rota-example.csv  12 worked example assignments
@@ -84,7 +84,7 @@ sheets/
   README.md         exact tab + column definitions
 webapp/             the Vercel front end (static pages + api/ proxy functions)
 docs/
-  SETUP.md          installation, credentials, activation, troubleshooting
+  SETUP.md          installation, credentials, publishing, troubleshooting
   DEMO-GUIDE.md     the 10-minute walkthrough for your supervisor
   ARCHITECTURE.md   data model, workflow catalogue, timing logic, limits
   SIWES-REPORT-NOTES.md  skeleton for your written report

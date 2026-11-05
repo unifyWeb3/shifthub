@@ -14,11 +14,13 @@ n8n import:workflow --input=./n8n/workflows/03-escalation-3hours-supervisor.json
 
 In the n8n UI: **Workflows → ⋯ → Import from File** (repeat for each file), or drop them all in.
 
-## Order to activate
+## Order to publish
 
-Import all 12 first, then wire credentials, then activate in this order:
+Import all 12 first, then wire credentials, then publish in this order. In n8n 2.x the
+**Active** toggle is called **Publish**; an unpublished workflow still runs when you click
+**Execute Workflow** in the editor, but its schedule and webhook are off.
 
-| # | File | Workflow | Activate when |
+| # | File | Workflow | Publish when |
 |---|------|----------|----------------|
 | 1 | `10-seed-demo-data.json` | Seed Demo Data | After the Google Sheets credential works (run manually, not scheduled) |
 | 2 | `04-telegram-yes-confirm.json` | Telegram YES Confirmation | After the Telegram bot credential exists |

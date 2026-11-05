@@ -177,11 +177,15 @@ n8n → **Credentials → New → IMAP Account**: Host `imap.gmail.com`, Port `9
 
 ---
 
-## 7. Activate
+## 7. Publish
 
-Activate in the order listed in [`n8n/README.md`](../n8n/README.md). Then, for each of the other
-11 workflows: **⋯ → Settings → Error Workflow → `ShiftHub — 12 · Error Notifier`**. A reminder
-workflow that fails silently is how shifts get missed — this makes failures loud.
+n8n 2.x replaced the old **Active** toggle with **Publish**: a workflow runs on its schedule or
+serves its webhook only after you publish it. Publish in the order listed in
+[`n8n/README.md`](../n8n/README.md).
+
+Then, for each of the other 11 workflows: **⋯ → Settings → Error Workflow → `ShiftHub — 12 ·
+Error Notifier`**. A reminder workflow that fails silently is how shifts get missed — this makes
+failures loud.
 
 ---
 
