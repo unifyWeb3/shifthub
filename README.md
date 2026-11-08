@@ -42,7 +42,8 @@ system. Full details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Quick start (60 minutes, first time)
 
-1. **Create the sheet** — 5 tabs with the headers in [`sheets/README.md`](sheets/README.md).
+1. **Create the sheet** — upload [`sheets/ShiftHub-Rota-Template.xlsx`](sheets/ShiftHub-Rota-Template.xlsx)
+   to Google Drive and save it as a Google Sheet (all five tabs are ready).
 2. **Run n8n** — `npm install -g n8n && TZ=Africa/Lagos n8n start` (Docker alternative in the
    setup guide).
 3. **Import the workflows** — `n8n import:workflow --separate --input=./n8n/workflows`, then paste

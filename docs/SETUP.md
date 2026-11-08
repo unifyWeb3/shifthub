@@ -22,39 +22,65 @@ time; each later run takes minutes.
 
 ## 1. Create the rota spreadsheet
 
-1. Go to <https://sheets.google.com> → **Blank spreadsheet**.
-2. Name it `ShiftHub Rota — <facility>`.
-3. Create five tabs and set the headers exactly as in [`sheets/README.md`](../sheets/README.md):
-   `Rota`, `Settings`, `SwapRequests`, `Flags`, `MonthlySummary`.
-4. Import `sheets/settings.csv` into the `Settings` tab and edit the values (supervisor email,
-   Telegram chat id, `fromEmail`, facility name).
-5. Copy the **spreadsheet ID** out of the URL:
-   `https://docs.google.com/spreadsheets/d/<THIS_PART>/edit` → `<THIS_PART>` is the ID you paste
-   into every n8n workflow.
+**Easiest — use the ready-made workbook:**
+
+1. Download [`sheets/ShiftHub-Rota-Template.xlsx`](../sheets/ShiftHub-Rota-Template.xlsx).
+2. In <https://drive.google.com>, click **New → File upload** and select the file.
+3. Double-click the uploaded file. If it opens in Office-editing mode, choose
+   **File → Save as Google Sheets**. That converted copy is your rota.
+4. Rename it `ShiftHub Rota — <facility>`. It already has the five tabs `Rota`, `Settings`,
+   `SwapRequests`, `Flags`, `MonthlySummary` with the exact headers.
+5. Open the `Settings` tab and edit the values (supervisor email, Telegram chat id, `fromEmail`,
+   facility name).
+
+**Or by hand:** <https://sheets.google.com> → **Blank spreadsheet**, then create the five tabs
+and copy the headers from [`sheets/README.md`](../sheets/README.md), and import
+`sheets/settings.csv` into `Settings`.
+
+Finally, copy the **spreadsheet ID** out of the URL:
+`https://docs.google.com/spreadsheets/d/<THIS_PART>/edit` → `<THIS_PART>` is the ID you paste
+into every n8n workflow.
 
 ---
 
 ## 2. Google credentials for n8n
 
-Pick one. **Option B (service account) is the better demo** — it never asks you to sign in again.
+Use **Option A (service account)**. A service account is not another Google login you have to
+remember — it is a robot identity that your existing Google account creates, and the sheet is
+shared with its email address.
 
-### Option A — OAuth2 (quickest, 3 minutes)
+### Option A — Service account (recommended, no expiry)
 
-1. n8n → **Credentials → New → Google Sheets OAuth2 API** → Sign in with Google → allow the
-   Sheets scope → save as `ShiftHub Google Sheets`.
-2. Select that credential on every Google Sheets node in every workflow.
+1. Open <https://console.cloud.google.com> while signed in to the Google account that owns the
+   sheet. Create a project (top bar project selector → **New project** → name it `ShiftHub`).
+2. **APIs & Services → Library** → search **Google Sheets API** → **Enable**. Then enable
+   **Google Drive API** the same way (n8n uses it for the spreadsheet picker).
+3. **IAM & Admin → Service Accounts → Create service account** → name it `shifthub-bot` →
+   **Create and continue** → skip the optional role screens → **Done**.
+4. Open `shifthub-bot` → **Keys → Add key → Create new key → JSON → Create**. A `.json` file
+   downloads. Treat it like a password.
+5. Run the helper so you can paste the two values n8n needs:
 
-### Option B — Service account (no expiry, recommended)
+   ```bash
+   python3 scripts/google-service-account-key.py /mnt/c/Users/<you>/Downloads/<the-key>.json
+   ```
 
-1. <https://console.cloud.google.com> → create/select a project → **APIs & Services → Library** →
-   enable **Google Sheets API** (and **Google Drive API** if you also want the file picker).
-2. **IAM & Admin → Service Accounts → Create service account** (skip the optional steps).
-3. Open the service account → **Keys → Add key → Create new key → JSON**. Download it.
-4. **Share the spreadsheet with the service account email** (`...@...iam.gserviceaccount.com`):
-   open the sheet → **Share → paste the address → Editor/Viewer**.
-5. In n8n → **Credentials → New → Google Service Account** → paste the JSON key → save as
-   `ShiftHub Google Sheets`.
-6. Select it on every Google Sheets node.
+   It prints the service-account email and copies the private key to your Windows clipboard.
+6. In the Google Sheet click **Share**, paste the service-account email
+   (`...@...iam.gserviceaccount.com`), choose **Editor**, and send.
+7. In n8n → **Credentials → Add credential → Google Service Account API**:
+   - **Region:** `Global` (the default)
+   - **Service Account Email:** the address printed by the helper
+   - **Private Key:** paste from the clipboard (Ctrl+V)
+   - Save as `ShiftHub Google Sheets`.
+8. Select that credential on every **Google Sheets** node in every workflow.
+
+### Option B — OAuth2 (only if you already have a Google OAuth client)
+
+Self-hosted n8n does not ship a Google OAuth client, so this path means creating an OAuth consent
+screen and client ID/secret in Google Cloud first. If you already have one: n8n →
+**Credentials → New → Google Sheets OAuth2 API** → enter the client details → **Sign in with
+Google** → save as `ShiftHub Google Sheets`.
 
 ---
 
@@ -75,6 +101,17 @@ TZ=Africa/Lagos n8n start
 
 Open <http://localhost:5678> and create the owner account (email + password). That account is
 local to your machine — write it down in your SIWES notes.
+
+**Keep it running after a WSL restart.** A plain `n8n start` dies when WSL or the terminal
+closes, which is why the page stops loading. Run this once instead:
+
+```bash
+bash scripts/install-n8n-service.sh
+```
+
+It installs a systemd user service, starts n8n now, and makes it start automatically whenever
+WSL starts. Check it with `systemctl --user status shifthub-n8n`; logs with
+`journalctl --user -u shifthub-n8n -f`.
 
 ### Option B — Docker
 

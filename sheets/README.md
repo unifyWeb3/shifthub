@@ -54,8 +54,10 @@ shiftId,date,startTime,endTime,ward,role,requiredCount,staffId,staffName,email,t
 
 | File | Use |
 |---|---|
+| `ShiftHub-Rota-Template.xlsx` | **Start here.** Upload to Google Drive, open with Google Sheets, and choose *File → Save as Google Sheets*. It contains all five tabs with the exact headers; workflow 10 fills the demo rows. |
 | `settings.csv` | Import into the `Settings` tab, then edit the values |
 | `rota-example.csv` | 12 worked example rows — copy them into `Rota` to see the shape, or ignore them and use workflow 10 to seed demo data with today's dates. The seed adds a short run tag to every `assignmentId` so that re-seeding never creates two rows with the same key. |
+| `rota-headers.csv` | Header-only Rota tab, used to build the workbook template. |
 | `swap-requests-headers.csv`, `flags-headers.csv`, `monthly-summary-headers.csv` | Header-only imports for the three write tabs |
 
 ## Importing a CSV into a tab
