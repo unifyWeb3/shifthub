@@ -45,11 +45,46 @@ into every n8n workflow.
 
 ## 2. Google credentials for n8n
 
-Use **Option A (service account)**. A service account is not another Google login you have to
-remember — it is a robot identity that your existing Google account creates, and the sheet is
-shared with its email address.
+Use **Option A (OAuth2)**. It signs n8n in as your own Google account, so it uses the access the
+sheet already has — no robot identity and no key file.
 
-### Option A — Service account (recommended, no expiry)
+> **If Google says “Service account key creation is disabled”**
+> (`iam.disableServiceAccountKeyCreation`), your Google account is under an organization policy
+> that blocks service-account keys. That is exactly why Option A exists: OAuth2 is not affected by
+> that policy. Use it instead of trying to fight the policy.
+
+### Option A — OAuth2 (recommended, works under org policies)
+
+1. In n8n: **Credentials → Add credential → Google Sheets OAuth2 API**.
+2. Copy the **OAuth Redirect URL** shown in the credential window. It is normally
+   `http://localhost:5678/rest/oauth2-credential/callback`.
+3. In <https://console.cloud.google.com>, signed in to the account that owns the sheet:
+   - Create/select a project (top bar → **New project** → `ShiftHub`).
+   - **APIs & Services → Library**: enable **Google Sheets API** and **Google Drive API**.
+   - **APIs & Services → OAuth consent screen** (newer consoles call it **Google Auth Platform**):
+     - App name `ShiftHub`; your email as support and developer contact.
+     - User type **External**; add your Google account under **Test users**.
+     - **Data Access / Scopes**: add
+       `https://www.googleapis.com/auth/spreadsheets`,
+       `https://www.googleapis.com/auth/drive.file`, and
+       `https://www.googleapis.com/auth/drive.metadata`.
+   - **Credentials → Create credentials → OAuth client ID → Web application**.
+     Name it `ShiftHub n8n`; under **Authorized redirect URIs** paste the n8n URL from step 2.
+   - Create it, then copy the **Client ID** and **Client secret**.
+4. Back in n8n: paste the Client ID and Client secret → **Save** → click
+   **Sign in with Google** / **Connect my account** → choose the account that owns the sheet →
+   allow the requested access.
+5. Save the credential as `ShiftHub Google Sheets`, then select it on every **Google Sheets** node.
+
+**Expiry note:** while the Google app is in **Testing** mode, Google expires the connection after
+7 days. That is fine for the SIWES demo; if you want it to last, open the OAuth consent screen and
+**Publish app**. If Google asks for verification, the app still works for your own account behind
+an “unverified app” warning — click **Advanced → Go to ShiftHub**.
+
+### Option B — Service account (only if key creation is allowed)
+
+A service account is a robot identity that your Google account creates; the sheet is shared with
+its email address. Skip this if you hit the organization-policy error above.
 
 1. Open <https://console.cloud.google.com> while signed in to the Google account that owns the
    sheet. Create a project (top bar project selector → **New project** → name it `ShiftHub`).
@@ -76,13 +111,6 @@ shared with its email address.
    - **Private Key:** paste from the clipboard (Ctrl+V)
    - Save as `ShiftHub Google Sheets`.
 8. Select that credential on every **Google Sheets** node in every workflow.
-
-### Option B — OAuth2 (only if you already have a Google OAuth client)
-
-Self-hosted n8n does not ship a Google OAuth client, so this path means creating an OAuth consent
-screen and client ID/secret in Google Cloud first. If you already have one: n8n →
-**Credentials → New → Google Sheets OAuth2 API** → enter the client details → **Sign in with
-Google** → save as `ShiftHub Google Sheets`.
 
 ---
 
