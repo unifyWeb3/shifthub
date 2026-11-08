@@ -3,11 +3,12 @@
 Turn a Google service-account JSON key into the two values n8n asks for.
 
 Usage:
-    python3 scripts/google-service-account-key.py ~/Downloads/my-key.json
+    python3 scripts/google-service-account-key.py [path-to-key.json]
 
-Prints the service-account email and copies the private key to the Windows
-clipboard (when running under WSL), so you can paste it straight into n8n's
-"Google Service Account API" credential. Falls back to printing the key.
+With no path it looks for the newest service-account JSON in your Windows
+Downloads folder (and ~/Downloads). It prints the service-account email and
+copies the private key to the Windows clipboard, so you can paste it straight
+into n8n's "Google Service Account API" credential. Falls back to printing it.
 
 The JSON key is a secret: never commit it or email it to anyone.
 """
@@ -23,27 +24,58 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
-def main() -> None:
-    if len(sys.argv) != 2:
-        fail("pass the path to the service-account JSON key, e.g. "
-             "python3 scripts/google-service-account-key.py ~/Downloads/my-key.json")
-
-    key_path = Path(sys.argv[1]).expanduser()
-    if not key_path.is_file():
-        fail(f"file not found: {key_path}")
-
+def load_key(path: Path):
     try:
-        data = json.loads(key_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        fail(f"{key_path} is not valid JSON ({exc})")
-
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
     email = str(data.get("client_email") or "").strip()
     private_key = str(data.get("private_key") or "")
-    if not email or "iam.gserviceaccount.com" not in email:
-        fail("this does not look like a service-account key (no client_email)")
-    if "BEGIN PRIVATE KEY" not in private_key or "END PRIVATE KEY" not in private_key:
-        fail("this key has no private_key field — download the JSON key from "
-             "Google Cloud Console → IAM & Admin → Service Accounts → Keys")
+    if data.get("type") != "service_account":
+        return None
+    if "iam.gserviceaccount.com" not in email or "BEGIN PRIVATE KEY" not in private_key:
+        return None
+    return email, private_key
+
+
+def find_newest_key():
+    candidates = [Path.home() / "Downloads"]
+    candidates.extend(Path("/mnt/c/Users").glob("*/Downloads"))
+    found = []
+    for folder in candidates:
+        if not folder.is_dir():
+            continue
+        for path in folder.glob("*.json"):
+            loaded = load_key(path)
+            if loaded:
+                found.append((path.stat().st_mtime, path, loaded))
+    if not found:
+        return None
+    found.sort(reverse=True)
+    _, path, (email, private_key) = found[0]
+    print(f"Using the newest service-account key: {path}\n")
+    return email, private_key
+
+
+def main() -> None:
+    if len(sys.argv) > 2:
+        fail("pass at most one path, e.g. "
+             "python3 scripts/google-service-account-key.py ~/Downloads/my-key.json")
+
+    if len(sys.argv) == 2:
+        key_path = Path(sys.argv[1]).expanduser()
+        if not key_path.is_file():
+            fail(f"file not found: {key_path}")
+        loaded = load_key(key_path)
+        if not loaded:
+            fail(f"{key_path} is not a Google service-account JSON key")
+        email, private_key = loaded
+    else:
+        loaded = find_newest_key()
+        if not loaded:
+            fail("no service-account JSON found. Download the key from Google Cloud "
+                 "Console → IAM & Admin → Service Accounts → Keys, then run this again.")
+        email, private_key = loaded
 
     print("\nService Account Email (paste into n8n):\n")
     print(f"  {email}\n")

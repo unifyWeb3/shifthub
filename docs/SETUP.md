@@ -62,10 +62,12 @@ shared with its email address.
 5. Run the helper so you can paste the two values n8n needs:
 
    ```bash
-   python3 scripts/google-service-account-key.py /mnt/c/Users/<you>/Downloads/<the-key>.json
+   python3 scripts/google-service-account-key.py
    ```
 
-   It prints the service-account email and copies the private key to your Windows clipboard.
+   It finds the newest service-account key in your Downloads folder, prints the
+   service-account email, and copies the private key to your Windows clipboard. If it picks the
+   wrong file, pass the exact path as an argument.
 6. In the Google Sheet click **Share**, paste the service-account email
    (`...@...iam.gserviceaccount.com`), choose **Editor**, and send.
 7. In n8n → **Credentials → Add credential → Google Service Account API**:
