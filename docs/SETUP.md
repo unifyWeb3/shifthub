@@ -99,6 +99,15 @@ python3 scripts/wire-credential.py imap
 
 Add `--dry-run` first to see what it would change.
 
+**Shortcut for the remaining credentials** — this creates them from the command line (the secret is
+prompted for, never echoed or saved) and wires them in one go:
+
+```bash
+python3 scripts/add-credential.py telegram   # asks for the @BotFather token
+python3 scripts/add-credential.py smtp      # asks for host/user + Google App Password
+python3 scripts/add-credential.py imap      # asks for host/user + Google App Password
+```
+
 **Expiry note:** while the Google app is in **Testing** mode, Google expires the connection after
 7 days. That is fine for the SIWES demo; if you want it to last, open the OAuth consent screen and
 **Publish app**. If Google asks for verification, the app still works for your own account behind
