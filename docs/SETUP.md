@@ -86,7 +86,15 @@ once from the project folder — it attaches the credential and replaces the
 `PASTE_GOOGLE_SPREADSHEET_ID` placeholder everywhere in the local n8n instance:
 
 ```bash
-python3 scripts/wire-google-credential.py <SPREADSHEET_ID>
+python3 scripts/wire-credential.py googleSheetsOAuth2Api --spreadsheet-id <SPREADSHEET_ID>
+```
+
+The same script wires the other credentials once you have created them:
+
+```bash
+python3 scripts/wire-credential.py telegramApi
+python3 scripts/wire-credential.py smtp
+python3 scripts/wire-credential.py imap
 ```
 
 Add `--dry-run` first to see what it would change.
