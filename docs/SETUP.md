@@ -74,6 +74,8 @@ sheet already has — no robot identity and no key file.
 4. Back in n8n: paste the Client ID and Client secret → **Save** → click
    **Sign in with Google** / **Connect my account** → choose the account that owns the sheet →
    allow the requested access.
+   - Typing long secrets is error-prone; this copies each value to the Windows clipboard for you:
+     `python3 scripts/oauth-copy.py id` and `python3 scripts/oauth-copy.py secret`.
 5. Save the credential as `ShiftHub Google Sheets`, then select it on every **Google Sheets** node.
 
 **Shortcut:** instead of clicking through every Google Sheets node in all 12 workflows, run this
