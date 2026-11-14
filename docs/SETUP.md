@@ -76,6 +76,16 @@ sheet already has — no robot identity and no key file.
    allow the requested access.
 5. Save the credential as `ShiftHub Google Sheets`, then select it on every **Google Sheets** node.
 
+**Shortcut:** instead of clicking through every Google Sheets node in all 12 workflows, run this
+once from the project folder — it attaches the credential and replaces the
+`PASTE_GOOGLE_SPREADSHEET_ID` placeholder everywhere in the local n8n instance:
+
+```bash
+python3 scripts/wire-google-credential.py <SPREADSHEET_ID>
+```
+
+Add `--dry-run` first to see what it would change.
+
 **Expiry note:** while the Google app is in **Testing** mode, Google expires the connection after
 7 days. That is fine for the SIWES demo; if you want it to last, open the OAuth consent screen and
 **Publish app**. If Google asks for verification, the app still works for your own account behind
