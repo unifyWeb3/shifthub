@@ -68,6 +68,9 @@ sheet already has — no robot identity and no key file.
        `https://www.googleapis.com/auth/spreadsheets`,
        `https://www.googleapis.com/auth/drive.file`, and
        `https://www.googleapis.com/auth/drive.metadata`.
+   - **Audience → Test users**: add your own Gmail address. Each project has its own consent
+     screen, so a new project needs this repeated — without it Google answers
+     *"Access blocked: … has not completed the Google verification process"*.
    - **Credentials → Create credentials → OAuth client ID → Web application**.
      Name it `ShiftHub n8n`; under **Authorized redirect URIs** paste the n8n URL from step 2.
    - Create it, then copy the **Client ID** and **Client secret**.
@@ -333,6 +336,8 @@ The routes it serves:
 
 | Symptom | Cause / fix |
 |---|---|
+| Google sign-in says *"Access blocked: … has not completed the Google verification process"* | The OAuth app is in **Testing** mode and your email is not an approved tester. Google Auth Platform → **Audience → Test users → Add** → add your own Gmail. Every new project/client needs its own test user and scopes. |
+| Google sign-in says *"Client authentication failed"* | The Client ID and Client Secret in n8n are not from the same OAuth client, or the client was deleted/rotated. Re-download the client's JSON and copy both values from it (`python3 scripts/oauth-copy.py id` / `secret`). |
 | Google Sheets node: `401/403` | Credential not authorised, or the service account was not given access to the sheet (Share it with the service-account email). |
 | Sheets node returns no rows | The tab name must match exactly (`Rota`, `Settings`, …). |
 | Telegram trigger receives nothing | Bot token wrong, staff never pressed **Start**, or n8n's public URL changed after a tunnel restart — re-save the Telegram Trigger node. |
