@@ -32,7 +32,8 @@
         0,
         160
       ],
-      "notes": "HTTP entry point. Point the Vercel app (or curl) at this URL."
+      "notes": "HTTP entry point. Point the Vercel app (or curl) at this URL.",
+      "webhookId": "shifthub-dashboard"
     },
     {
       "parameters": {

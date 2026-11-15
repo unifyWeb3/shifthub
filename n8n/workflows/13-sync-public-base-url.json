@@ -1,0 +1,110 @@
+{
+  "name": "ShiftHub — 13 · Maintenance: Set Public Base URL",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# ShiftHub — Maintenance: public base URL\n\nKeeps the `publicBaseUrl` row in the Settings tab in sync with the public n8n URL (the Cloudflare tunnel). The reminder e-mails build their one-tap confirmation link from this value, so it must point at the public URL.\n\n`scripts/sync-tunnel-url.py` rewrites the placeholder below with the live tunnel URL and runs this workflow. Manual trigger only - it never runs on a schedule.",
+        "height": 230,
+        "width": 400,
+        "color": 7
+      },
+      "id": "7c1f0a52-4d3b-4a0e-9c2f-0b8f4a1d6e01",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "7c1f0a52-4d3b-4a0e-9c2f-0b8f4a1d6e02",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "Manual trigger only."
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "PASTE_GOOGLE_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Settings",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "publicBaseUrl",
+            "value": "PASTE_PUBLIC_BASE_URL"
+          },
+          "matchingColumns": [
+            "key"
+          ],
+          "schema": [
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7c1f0a52-4d3b-4a0e-9c2f-0b8f4a1d6e03",
+      "name": "Write publicBaseUrl",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        160
+      ],
+      "notes": "Writes the public n8n URL into the Settings tab (row key = publicBaseUrl)."
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Write publicBaseUrl",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Lagos"
+  },
+  "pinData": {}
+}

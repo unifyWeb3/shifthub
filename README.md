@@ -76,7 +76,7 @@ breaking.
 
 ```
 n8n/
-  workflows/        12 importable workflow JSON files (no credentials inside)
+  workflows/        13 importable workflow JSON files (12 functional + 1 maintenance helper)
   README.md         import order, credential matrix, publishing checklist
 sheets/
   settings.csv      ready-to-import Settings tab
@@ -91,6 +91,11 @@ docs/
   SIWES-REPORT-NOTES.md  skeleton for your written report
 scripts/
   validate_workflows.py  structural validator for the workflow JSON
+  wire-credential.py     attach a credential to every matching node
+  add-credential.py      create Telegram / SMTP / IMAP credentials from the CLI (secret not echoed)
+  publish-drafts.py      re-snapshot every draft as the published version n8n actually runs
+  sync-webhook-paths.py  push the stable short webhook paths into the instance
+  sync-tunnel-url.py     keep systemd + Settings + Vercel on the same public URL
 ```
 
 ## Validate the workflows
@@ -106,7 +111,7 @@ CI on every push (`.github/workflows/validate.yml`).
 
 ## Built with
 
-- [n8n](https://n8n.io) — workflow automation (12 workflows, cron + webhook + telegram + IMAP)
+- [n8n](https://n8n.io) — workflow automation (13 workflows, cron + webhook + telegram + IMAP)
 - Google Sheets — rota store, settings, flags, monthly summary
 - Telegram Bot API — staff confirmations and supervisor alerts
 - Gmail SMTP / IMAP — email reminders, `YES` replies, reports

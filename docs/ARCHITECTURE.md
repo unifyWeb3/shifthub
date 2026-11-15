@@ -8,11 +8,12 @@
         └───────▲───────────────────────▲───────────────────────▲───────────────┘
                 │ read/write            │ read/write            │ read
      ┌──────────┴─────────────────────────────────────────────────┴───────────┐
-     │                     n8n (12 workflows, cron + webhooks)                 │
+     │                     n8n (12 workflows + 1 maintenance helper)              │
      │  01 T-1 reminder   02 T-2h reminder   03 3-hour escalation             │
      │  04 Telegram YES   05 email link      06 email reply YES              │
      │  07 swap intake    08 monthly hours   09 understaffing flags          │
      │  10 demo seed      11 dashboard API   12 error notifier                │
+     │  13 maintenance: keep publicBaseUrl in sync with the tunnel URL        │
      └───────▲───────────────────────────▲──────────────────────────▲──────────┘
              │ email (SMTP)                │ Telegram bot           │
         ┌────┴─────┐                 ┌────┴──────┐          ┌───────┴────────┐

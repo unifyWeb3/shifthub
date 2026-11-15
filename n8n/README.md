@@ -1,7 +1,8 @@
 # ShiftHub n8n workflows
 
-Twelve importable workflow JSON files. Nothing here contains credentials or keys — you attach
-your own credentials in the n8n UI after importing.
+Thirteen importable workflow JSON files (01–12 are the functional workflows, 13 is a maintenance
+helper). Nothing here contains credentials or keys — you attach your own credentials in the n8n
+UI after importing.
 
 ## Import (2 minutes)
 
@@ -14,9 +15,31 @@ n8n import:workflow --input=./n8n/workflows/03-escalation-3hours-supervisor.json
 
 In the n8n UI: **Workflows → ⋯ → Import from File** (repeat for each file), or drop them all in.
 
+## The public webhooks (short paths)
+
+| URL | Used by |
+|---|---|
+| `GET  /webhook/shifthub-dashboard` | the Vercel dashboard (`/api/dashboard`) |
+| `POST /webhook/swap-request` | the Vercel swap form (`/api/swap`) |
+| `GET  /webhook/confirm-shift?token=…` | the one-tap link inside every reminder e-mail |
+
+In n8n 2.x a Webhook node without a `webhookId` is served from
+`/webhook/<workflowId>/<lowercased node name>/<path>`. That long form contains the workflow id
+and breaks when the node name has a space (the incoming path is URL-decoded before the lookup, so
+`%20` can never match). The webhook nodes in workflows 05, 07 and 11 therefore carry an explicit
+`webhookId` (`confirm-shift`, `swap-request`, `shifthub-dashboard`), which is what produces the
+short paths above.
+
+If you import into a fresh instance and the paths look wrong:
+
+```bash
+python3 scripts/sync-webhook-paths.py --force   # copies webhookId into the instance
+python3 scripts/publish-drafts.py               # re-snapshots the drafts as published versions
+```
+
 ## Order to publish
 
-Import all 12 first, then wire credentials, then publish in this order. In n8n 2.x the
+Import all 13 first, then wire credentials, then publish in this order. In n8n 2.x the
 **Active** toggle is called **Publish**; an unpublished workflow still runs when you click
 **Execute Workflow** in the editor, but its schedule and webhook are off.
 
@@ -34,6 +57,11 @@ Import all 12 first, then wire credentials, then publish in this order. In n8n 2
 | 10 | `08-monthly-hours-summary.json` | Monthly Hours Summary | After Google Sheets + SMTP work |
 | 11 | `09-understaffing-flag.json` | Understaffing Check & Flag | After Google Sheets + SMTP work |
 | 12 | `12-error-notifier.json` | Error Notifier | Last — then set it as the Error Workflow on the other 11 |
+| — | `13-sync-public-base-url.json` | Maintenance: Set Public Base URL | Never published — manual trigger only, run by `scripts/sync-tunnel-url.py` |
+
+> n8n runs the **published snapshot**, not the draft in the editor. Wire the credential, then
+> publish again. From the CLI: `n8n publish:workflow --id=<id>`, or `python3 scripts/publish-drafts.py`
+> for all of them at once.
 
 ## Credentials to attach (all created by you in the n8n UI)
 
@@ -44,6 +72,17 @@ Import all 12 first, then wire credentials, then publish in this order. In n8n 2
 | **Inbox Trigger** (workflow 06) | `IMAP account` | `imap.gmail.com`, port `993`, user = facility mailbox, password = Google App Password, TLS on |
 | **Telegram Trigger** / **Telegram** nodes | `Telegram account` | Bot token from @BotFather |
 | **Respond to Webhook** nodes | none | — |
+
+Faster than the UI, and the secret never touches a web form:
+
+```bash
+python3 scripts/add-credential.py telegram
+python3 scripts/add-credential.py smtp
+python3 scripts/add-credential.py imap
+```
+
+Each script creates the credential in the local n8n instance and wires it into every matching
+node (`scripts/wire-credential.py`).
 
 ## One manual edit in every workflow
 

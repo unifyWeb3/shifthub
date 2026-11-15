@@ -197,26 +197,47 @@ tunnel:
 cloudflared tunnel --url http://localhost:5678
 ```
 
-It prints `https://<random>.trycloudflare.com`. Restart n8n so it uses that URL for webhooks:
+It prints `https://<random>.trycloudflare.com`. n8n needs that URL in two places:
+
+| variable | meaning |
+|---|---|
+| `N8N_WEBHOOK_URL` | base URL for **both** test and production webhooks (n8n 2.x) |
+| `N8N_EDITOR_BASE_URL` | the URL you open in the browser — keep it `http://localhost:5678` |
+
+> Keep `N8N_EDITOR_BASE_URL=http://localhost:5678`. The n8n session cookie is host-only and
+> Google's OAuth redirect URI is `http://localhost:5678/rest/oauth2-credential/callback`, so
+> opening the UI through the tunnel breaks the Google sign-in.
+
+If n8n runs as the systemd user service (`shifthub-n8n.service`), put the tunnel URL in the unit
+file and restart:
 
 ```bash
-TZ=Africa/Lagos WEBHOOK_URL=https://<random>.trycloudflare.com n8n start
+sudo systemctl --user daemon-reload
+sudo systemctl --user restart shifthub-n8n
 ```
 
-(If your n8n version ignores `WEBHOOK_URL`, copy the "Webserver started" URL that n8n prints at
-startup and set it in the Settings tab as `publicBaseUrl` instead. The Telegram trigger registers
-its webhook with whatever base URL n8n is using — check the **Telegram Trigger** node's
-"Test" / production URL in the UI.)
+**Do not hand-edit that URL after every tunnel restart.** One script keeps every copy in sync
+(systemd unit → `Settings.publicBaseUrl` in the sheet → workflow 13 → Vercel):
 
-> The tunnel URL changes every time you restart it. Update `publicBaseUrl` in the Settings tab and
-> re-register the Telegram webhook after a restart (edit the Telegram Trigger node and save).
+```bash
+python3 scripts/sync-tunnel-url.py
+```
+
+It reads the live URL from the tunnel log, rewrites the unit, restarts n8n, patches and runs
+**ShiftHub — 13 · Maintenance: Set Public Base URL** (which writes `publicBaseUrl` back into the
+`Settings` tab), and prints the value you still have to paste into Vercel (step 9).
+
+> The tunnel URL changes every time you restart it. After a tunnel restart run
+> `python3 scripts/sync-tunnel-url.py` and redeploy the Vercel app — otherwise the web app still
+> points at the dead URL. The Telegram trigger re-registers itself with the new base URL when n8n
+> restarts.
 
 ---
 
 ## 4. Import the workflows
 
-**In the UI:** Workflows → **⋯ → Import from File** → repeat for the 12 files in
-`n8n/workflows/`.
+**In the UI:** Workflows → **⋯ → Import from File** → repeat for the 13 files in
+`n8n/workflows/` (01–12 are the functional workflows, 13 is the maintenance workflow).
 
 **In the CLI** (stop n8n first):
 
@@ -228,9 +249,48 @@ Then, for each workflow, open the Google Sheets nodes and set **Document ID** to
 spreadsheet ID (or pick it from the dropdown after authenticating). `PASTE_GOOGLE_SPREADSHEET_ID`
 is a deliberate marker — a search for it in the repo finds every place you need to touch.
 
+The spreadsheet id can also be filled in from the CLI, together with the Google credential:
+
+```bash
+python3 scripts/wire-credential.py googleSheetsOAuth2Api \
+  --spreadsheet-id 1eHo1kIBUcAnAwP-joLm6RFe7cpcD6wz18FJtHIZfzRw
+```
+
+### The public webhooks (short paths)
+
+The three HTTP entry points are deliberately short and stable:
+
+| URL | Used by |
+|---|---|
+| `GET  /webhook/shifthub-dashboard` | the Vercel dashboard (`/api/dashboard`) |
+| `POST /webhook/swap-request` | the Vercel swap form (`/api/swap`) |
+| `GET  /webhook/confirm-shift?token=…` | the one-tap link inside every reminder e-mail |
+
+In n8n 2.x a Webhook node without a `webhookId` is served from
+`/webhook/<workflowId>/<lowercased node name>/<path>`, which breaks as soon as the node name
+contains a space. Every webhook node in `n8n/workflows/` therefore carries an explicit
+`webhookId` (`shifthub-dashboard`, `swap-request`, `confirm-shift`). If you re-import the
+workflows into a fresh instance and the paths look wrong, run:
+
+```bash
+python3 scripts/sync-webhook-paths.py --force
+```
+
 ---
 
 ## 5. Credentials
+
+The quickest way (no clicking through the n8n UI, and the secret is never typed into a web form
+or written to disk):
+
+```bash
+python3 scripts/add-credential.py telegram   # asks for the BotFather token (not echoed)
+python3 scripts/add-credential.py smtp       # host/port/user + the 16-character app password
+python3 scripts/add-credential.py imap       # host/port/user + the same app password
+```
+
+Each script creates the credential in the local n8n instance and immediately wires it into every
+matching node. The same thing by hand:
 
 ### SMTP (sends every email)
 
@@ -282,6 +342,24 @@ n8n 2.x replaced the old **Active** toggle with **Publish**: a workflow runs on 
 serves its webhook only after you publish it. Publish in the order listed in
 [`n8n/README.md`](../n8n/README.md).
 
+From the CLI, publishing one workflow is:
+
+```bash
+n8n publish:workflow --id=<workflowId>
+```
+
+and publishing **every** workflow in one pass (this re-snapshots the current draft — including
+the credentials and the spreadsheet id — as the published version, which is what n8n actually
+runs) is:
+
+```bash
+python3 scripts/publish-drafts.py
+```
+
+> n8n runs the *published snapshot*, not the draft you see in the editor. If you wire a
+> credential in the UI and the workflow still says "Node does not have any credentials set",
+> publish it again (or run `scripts/publish-drafts.py`).
+
 Then, for each of the other 11 workflows: **⋯ → Settings → Error Workflow → `ShiftHub — 12 ·
 Error Notifier`**. A reminder workflow that fails silently is how shifts get missed — this makes
 failures loud.
@@ -326,6 +404,11 @@ All that is left is the one environment variable that tells the app where n8n li
 3. Open <https://shifthub-oxunify.vercel.app/dashboard> — the amber "Offline preview" banner
    disappears once the proxy reaches n8n.
 
+`python3 scripts/sync-tunnel-url.py` prints the exact value to paste after every tunnel
+restart, and the Vercel environment variable is already set for Production, Preview and
+Development. **The redeploy is still required** — a new environment variable only reaches a
+serverless function on its next deployment.
+
 Until you set it, the site runs in a clearly-labelled offline demo mode (sample rota, swap form
 returns a demo reference). Nothing is lost, and nothing pretends to be live.
 
@@ -365,6 +448,9 @@ The routes it serves:
 | Confirm link says "invalid" | The token in the email does not match `confirmToken` in the row (re-send reminders after fixing the cell). |
 | Dashboard shows "Offline preview" | `N8N_WEBHOOK_BASE` is empty or wrong in Vercel — redeploy after setting it. |
 | `403` from the swap form | The n8n webhook path is not `swap-request` (workflow 07) or the workflow is inactive. Webhooks only work on **active** workflows. |
+| `404 … is not registered` from a webhook URL | The workflow is not published, or the path is the old long form (`/webhook/<workflowId>/dashboard webhook/…`). Run `python3 scripts/sync-webhook-paths.py --force`, publish, and use the short path `/webhook/shifthub-dashboard`. |
+| Workflow says "Node does not have any credentials set" | The workflow is running its **published snapshot**, which was taken before you wired the credential. Publish it again (`n8n publish:workflow --id=<id>` or `python3 scripts/publish-drafts.py`). |
+| Everything works locally but the Vercel app says "Offline preview" | The tunnel URL changed (quick tunnels change on every restart) or the app was not redeployed after `N8N_WEBHOOK_BASE` changed. Run `python3 scripts/sync-tunnel-url.py`, then redeploy. |
 
 ---
 
