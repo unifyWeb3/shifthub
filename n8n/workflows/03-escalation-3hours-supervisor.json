@@ -174,7 +174,7 @@
         1580,
         60
       ],
-      "notes": "Re-expands the at-risk rows so each one can be stamped after the alert was delivered."
+      "notes": "Runs after either notification channel delivered, so the stamp is written when the supervisor was reached by Telegram OR email (never before)."
     },
     {
       "parameters": {
@@ -324,6 +324,17 @@
         [
           {
             "node": "Mark Escalation Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Supervisor (Telegram)": {
+      "main": [
+        [
+          {
+            "node": "Restore At-Risk Rows",
             "type": "main",
             "index": 0
           }

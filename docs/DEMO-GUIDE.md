@@ -7,12 +7,12 @@ This is the script to show your supervisor. It ends with the "done when" criteri
 
 0. Live site: <https://shifthub-oxunify.vercel.app> — open `/dashboard` in one tab and `/swap` in
    another.
-1. n8n running, all 12 workflows imported, credentials connected, workflows **active**.
+1. n8n running, all 12 workflows imported, credentials connected, workflows **published**.
 2. `Settings` tab filled in (especially `supervisorEmail`, `supervisorTelegramChatId`, `fromEmail`).
-3. Vercel app deployed, `N8N_WEBHOOK_BASE` set to your n8n public URL.
+3. Web app pointed at n8n — `python3 scripts/sync-tunnel-url.py --publish` writes
+   `webapp/n8n-url.txt` and pushes it, so the deployed site reaches the live n8n.
 4. Telegram: your supervisor has pressed **Start** on the bot; you know their chat id.
-5. Run **10 · Seed Demo Data** once (it clears nothing — delete the `Rota` rows first if you are
-   re-seeding, otherwise you get duplicate demo rows).
+5. Run **10 · Seed Demo Data** once. It clears the `Rota` tab first, so re-seeding is safe.
 6. **Immediately** execute **03 · 3-Hour Unconfirmed Escalation**. The seeded demo shift starts in
    ~3 h 10 min and the escalation window is 165–195 minutes, so you have about **25 minutes** of
    head-room. If you are later than that, run the seed again and it creates a fresh shift.
@@ -106,7 +106,7 @@ Open the **Overview** page on the deployed site. Point at the 3-hour escalation 
 | Telegram message didn't arrive | Bot token / user didn't press Start → fall back to showing the email, then re-run the workflow after they press Start. |
 | No email | Check the workflow's Executions log for the SMTP error; usually the app password expired. |
 | The escalation says "no shifts at risk" | You are more than ~25 minutes after seeding (the seeded shift has moved out of the 165–195 minute window), or the row is already `CONFIRMED` / already stamped. Run the seed again — it creates a fresh shift starting in ~3 h 10 min — then execute workflow 03 again. |
-| Dashboard says "Offline preview" | `N8N_WEBHOOK_BASE` unset in Vercel → set it and redeploy, or demo the workflow JSON instead. |
+| Dashboard says "Offline preview" | The web app cannot reach n8n — `webapp/n8n-url.txt` is stale. Run `python3 scripts/sync-tunnel-url.py --publish` and wait for the Vercel redeploy, or demo the workflow JSON instead. |
 
 ## Screenshots worth taking for your SIWES report
 

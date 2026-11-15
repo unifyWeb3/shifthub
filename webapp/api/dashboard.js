@@ -1,6 +1,7 @@
 // Vercel serverless proxy: GET /api/dashboard → n8n webhook (GET /webhook/shifthub-dashboard).
-// If N8N_WEBHOOK_BASE is not set, returns a clearly-labelled demo payload (offline preview).
-const N8N_BASE = (process.env.N8N_WEBHOOK_BASE || '').replace(/\/+$/, '');
+// The n8n base URL is resolved at request time (see _n8n-base.js); if it cannot be
+// resolved, the response is a clearly-labelled demo payload (offline preview).
+const { resolveN8NBase } = require('./_n8n-base');
 
 function demoPayload() {
   const now = new Date();
@@ -64,6 +65,7 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: 'method_not_allowed' });
     return;
   }
+  const N8N_BASE = await resolveN8NBase();
   if (!N8N_BASE) {
     res.status(200).json(demoPayload());
     return;

@@ -27,6 +27,7 @@ from pathlib import Path
 UNIT = Path.home() / ".config/systemd/user/shifthub-n8n.service"
 TUNNEL_LOG = Path.home() / ".config/shifthub/tunnel.log"
 SERVICE = "shifthub-n8n"
+URL_FILE = Path(__file__).resolve().parent.parent / "webapp" / "n8n-url.txt"
 URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 
 
@@ -94,10 +95,36 @@ def set_public_base_url(url: str, dry_run: bool) -> bool:
     return True
 
 
+def publish_url_file(url: str, dry_run: bool, publish: bool) -> None:
+    """Write the URL to webapp/n8n-url.txt - the web app reads it at request time."""
+    current = URL_FILE.read_text(encoding="utf-8").strip() if URL_FILE.is_file() else ""
+    if current == url:
+        print(f"   webapp/n8n-url.txt is already up to date")
+        return
+    if dry_run:
+        print(f"   would write {URL_FILE} = {url}")
+        return
+    URL_FILE.write_text(url + "\n", encoding="utf-8")
+    print(f"   wrote {URL_FILE} = {url}")
+    if publish:
+        subprocess.run(["git", "-C", str(URL_FILE.parent.parent), "add", "webapp/n8n-url.txt"],
+                       check=False)
+        subprocess.run(["git", "-C", str(URL_FILE.parent.parent), "commit", "-m",
+                        "chore: point the web app at the current n8n public URL"], check=False)
+        subprocess.run(["git", "-C", str(URL_FILE.parent.parent), "push", "origin", "main"],
+                       check=False)
+        print("   committed and pushed (Vercel redeploys automatically)")
+    else:
+        print("   commit and push this file so the web app picks it up "
+              "(git add webapp/n8n-url.txt && git commit -m 'chore: n8n public URL' && git push)")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", help="explicit tunnel URL (default: read from the tunnel log)")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--publish", action="store_true",
+                        help="commit and push webapp/n8n-url.txt so the web app picks the URL up")
     args = parser.parse_args()
 
     url = args.url or current_tunnel_url()
@@ -124,9 +151,13 @@ def main() -> None:
     ok = set_public_base_url(url, args.dry_run)
     print(f"   Settings update: {'ok' if ok else 'FAILED'}")
 
-    print("\n3. Vercel")
-    print(f"   set N8N_WEBHOOK_BASE={url} in the Vercel project 'shifthub' (team oxunify)")
-    print("   then redeploy so the web app proxy picks it up.")
+    print("\n3. web app (webapp/n8n-url.txt)")
+    publish_url_file(url, args.dry_run, args.publish)
+
+    print("\n4. Vercel (optional)")
+    print(f"   the web app reads the URL from the file above, so no redeploy is needed.")
+    print(f"   if you prefer an environment variable, set N8N_WEBHOOK_BASE={url} "
+          f"in project 'shifthub' (team oxunify).")
 
 
 if __name__ == "__main__":

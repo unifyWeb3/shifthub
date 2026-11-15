@@ -1,6 +1,7 @@
 // Vercel serverless proxy: POST /api/swap → n8n webhook (POST /webhook/swap-request).
-// If N8N_WEBHOOK_BASE is not set, returns a clearly-labelled demo acknowledgement (nothing is persisted).
-const N8N_BASE = (process.env.N8N_WEBHOOK_BASE || '').replace(/\/+$/, '');
+// The n8n base URL is resolved at request time (see _n8n-base.js); if it cannot be
+// resolved, the response is a clearly-labelled demo acknowledgement (nothing is persisted).
+const { resolveN8NBase } = require('./_n8n-base');
 
 const REQUIRED = ['name', 'contact', 'shiftDate', 'ward', 'reason'];
 
@@ -29,12 +30,13 @@ module.exports = async (req, res) => {
     return;
   }
 
+  const N8N_BASE = await resolveN8NBase();
   if (!N8N_BASE) {
     res.status(200).json({
       ok: true,
       demo: true,
       requestId: 'DEMO-' + Date.now().toString(36).toUpperCase(),
-      message: 'Offline demo mode: the request was accepted but NOT persisted. Set N8N_WEBHOOK_BASE in Vercel to forward it to n8n.',
+      message: 'Offline demo mode: the request was accepted but NOT persisted. The n8n public URL could not be resolved.',
     });
     return;
   }

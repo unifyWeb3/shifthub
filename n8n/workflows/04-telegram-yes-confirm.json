@@ -31,7 +31,8 @@
         0,
         160
       ],
-      "notes": "Receives every message sent to the ShiftHub bot."
+      "notes": "Receives the bot's updates. The webhookId keeps the registered path at /webhook/shifthub-telegram/webhook - without it n8n builds a path from the node name, and the space in 'Telegram Trigger' breaks the URL Telegram calls (setWebhook then fails with 'bad webhook').",
+      "webhookId": "shifthub-telegram"
     },
     {
       "parameters": {
