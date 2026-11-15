@@ -18,10 +18,7 @@ Usage:
     python3 scripts/sync-tunnel-url.py [--url https://....trycloudflare.com] [--dry-run]
 """
 import argparse
-import json
-import os
 import re
-import sqlite3
 import subprocess
 import sys
 import time
@@ -29,11 +26,7 @@ from pathlib import Path
 
 UNIT = Path.home() / ".config/systemd/user/shifthub-n8n.service"
 TUNNEL_LOG = Path.home() / ".config/shifthub/tunnel.log"
-DB = Path.home() / ".n8n" / "database.sqlite"
-N8N_BIN = os.environ.get("N8N_BIN") or str(Path.home() / ".local/bin/n8n")
 SERVICE = "shifthub-n8n"
-MAINTENANCE_WORKFLOW = "ShiftHub — 13 · Maintenance: Set Public Base URL"
-PLACEHOLDER = "PASTE_PUBLIC_BASE_URL"
 URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 
 
@@ -85,92 +78,19 @@ def update_unit(url: str, dry_run: bool) -> bool:
     return changed
 
 
-def patch_maintenance_workflow(url: str, dry_run: bool) -> str | None:
-    """Put the live URL into workflow 13 and return its workflow id."""
-    if not DB.is_file():
-        fail(f"no n8n database at {DB}")
-    conn = sqlite3.connect(DB)
-    row = conn.execute(
-        "select id, nodes from workflow_entity where name = ?", (MAINTENANCE_WORKFLOW,)
-    ).fetchone()
-    if not row:
-        conn.close()
-        print(f"  ! workflow '{MAINTENANCE_WORKFLOW}' is not in this n8n instance - skipped")
-        return None
-    workflow_id, nodes_json = row
-    nodes = json.loads(nodes_json)
-    changed = False
-    for node in nodes:
-        if node.get("type") != "n8n-nodes-base.googleSheets":
-            continue
-        columns = node.get("parameters", {}).get("columns", {})
-        value = columns.get("value", {})
-        if value.get("value") != url:
-            value["value"] = url
-            columns["value"] = value
-            node["parameters"]["columns"] = columns
-            changed = True
-    if changed and not dry_run:
-        conn.execute(
-            "update workflow_entity set nodes = ?, updatedAt = CURRENT_TIMESTAMP where id = ?",
-            (json.dumps(nodes, separators=(",", ":")), workflow_id),
-        )
-        for (version_nodes,) in conn.execute(
-            "select nodes from workflow_history where workflowId = ?", (workflow_id,)
-        ).fetchall():
-            history_nodes = json.loads(version_nodes)
-            for node in history_nodes:
-                if node.get("type") != "n8n-nodes-base.googleSheets":
-                    continue
-                columns = node.get("parameters", {}).get("columns", {})
-                value = columns.get("value", {})
-                if value.get("value") != url:
-                    value["value"] = url
-                    columns["value"] = value
-                    node["parameters"]["columns"] = columns
-                    changed = True
-            if changed:
-                conn.execute(
-                    "update workflow_history set nodes = ?, updatedAt = CURRENT_TIMESTAMP "
-                    "where workflowId = ? and versionId = "
-                    "(select versionId from workflow_history where workflowId = ? limit 1)",
-                    (json.dumps(history_nodes, separators=(",", ":")), workflow_id, workflow_id),
-                )
-        conn.commit()
-    conn.close()
-    return workflow_id
-
-
-def run_workflow(workflow_id: str) -> bool:
-    env = dict(os.environ)
-    # the running instance owns port 5679, so the CLI needs its own broker port
-    env["N8N_RUNNERS_BROKER_PORT"] = "5681"
-    result = subprocess.run([N8N_BIN, "execute", "--id", workflow_id],
-                            capture_output=True, text=True, env=env)
-    output = result.stdout + result.stderr
+def set_public_base_url(url: str, dry_run: bool) -> bool:
+    """Write publicBaseUrl into the Settings tab via the maintenance workflow."""
+    script = Path(__file__).resolve().parent / "set-setting.py"
+    if dry_run:
+        print(f"   would write Settings.publicBaseUrl = {url}")
+        return True
+    result = subprocess.run([sys.executable, str(script), "publicBaseUrl", url],
+                            capture_output=True, text=True)
+    output = (result.stdout + result.stderr).strip()
     if result.returncode != 0:
-        print(output[-1500:])
+        print(output[-1200:])
         return False
-    try:
-        start = output.find("{\n")
-        data = json.loads(output[start:])
-    except (ValueError, TypeError):
-        print(output[-1500:])
-        return False
-    if data.get("status") != "success":
-        print(json.dumps(data)[:1500])
-        return False
-    run_data = data.get("data", {}).get("resultData", {}).get("runData", {})
-    for name, runs in run_data.items():
-        for run in runs:
-            if run.get("error"):
-                print(f"  ! {name}: {run['error'].get('message')}")
-                return False
-            rows = run.get("data", {}).get("main", [[]])[0] if run.get("data") else []
-            for row in rows[:3]:
-                payload = row.get("json", {})
-                if payload.get("key") == "publicBaseUrl":
-                    print(f"  Settings.publicBaseUrl = {payload.get('value')}")
+    print(output)
     return True
 
 
@@ -200,12 +120,9 @@ def main() -> None:
             capture_output=True, text=True)
         print(f"   tunnel /healthz -> {health.stdout.strip()}")
 
-    print("\n2. n8n maintenance workflow (13)")
-    workflow_id = patch_maintenance_workflow(url, args.dry_run)
-    if workflow_id and not args.dry_run:
-        print(f"   workflow id: {workflow_id}")
-        ok = run_workflow(workflow_id)
-        print(f"   Settings update: {'ok' if ok else 'FAILED'}")
+    print("\n2. n8n maintenance workflow (13) -> Settings.publicBaseUrl")
+    ok = set_public_base_url(url, args.dry_run)
+    print(f"   Settings update: {'ok' if ok else 'FAILED'}")
 
     print("\n3. Vercel")
     print(f"   set N8N_WEBHOOK_BASE={url} in the Vercel project 'shifthub' (team oxunify)")
