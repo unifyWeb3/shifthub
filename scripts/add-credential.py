@@ -10,8 +10,11 @@ Usage:
 
 It prompts for the secret values (nothing is echoed, nothing is saved to disk
 except a temporary file that is deleted immediately). After importing, it calls
-scripts/wire-credential.py to attach the credential to the right nodes.
+scripts/wire-credential.py to attach the credential to the right nodes, then
+scripts/publish-drafts.py so the *published* version - the one n8n actually
+runs - carries the credential too.
 """
+import argparse
 import getpass
 import json
 import os
@@ -62,9 +65,12 @@ def fail(message: str) -> None:
 
 
 def main() -> None:
-    if len(sys.argv) != 2 or sys.argv[1] not in CREDENTIALS:
-        fail("usage: python3 scripts/add-credential.py telegram|smtp|imap")
-    spec = CREDENTIALS[sys.argv[1]]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("credential", choices=sorted(CREDENTIALS))
+    parser.add_argument("--no-publish", action="store_true",
+                        help="wire the credential but do not re-publish the drafts")
+    args = parser.parse_args()
+    spec = CREDENTIALS[args.credential]
 
     data = dict(spec.get("defaults", {}))
     print(f"Creating credential: {spec['name']} ({spec['type']})\n")
@@ -94,6 +100,10 @@ def main() -> None:
         Path(path).unlink(missing_ok=True)
 
     subprocess.run([sys.executable, str(REPO / "scripts" / "wire-credential.py"), spec["type"]], check=True)
+
+    if not args.no_publish:
+        print("\nre-publishing the drafts so the running workflows carry the credential:")
+        subprocess.run([sys.executable, str(REPO / "scripts" / "publish-drafts.py")], check=True)
 
 
 if __name__ == "__main__":

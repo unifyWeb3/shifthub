@@ -96,6 +96,7 @@ scripts/
   publish-drafts.py      re-snapshot every draft as the published version n8n actually runs
   sync-webhook-paths.py  push the stable short webhook paths into the instance
   sync-tunnel-url.py     keep systemd + Settings + Vercel on the same public URL
+  check-status.py        what is published, which triggers are live, when the crons run
 ```
 
 ## Validate the workflows

@@ -289,8 +289,17 @@ python3 scripts/add-credential.py smtp       # host/port/user + the 16-character
 python3 scripts/add-credential.py imap       # host/port/user + the same app password
 ```
 
-Each script creates the credential in the local n8n instance and immediately wires it into every
-matching node. The same thing by hand:
+Each script creates the credential in the local n8n instance, wires it into every matching node
+and re-publishes the drafts, so the running workflows carry it. Check the result with:
+
+```bash
+python3 scripts/check-status.py
+```
+
+It prints, per workflow, whether it is published, whether every trigger activated (a missing
+credential shows up here), the registered webhook paths and the next cron run.
+
+The same thing by hand:
 
 ### SMTP (sends every email)
 
