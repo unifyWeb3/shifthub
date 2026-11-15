@@ -71,7 +71,9 @@ module.exports = async (req, res) => {
     return;
   }
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
+  // A cold dashboard call reads two Google Sheets tabs and takes 5-15s through
+  // the tunnel, so the abort has to be generous.
+  const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
     const upstream = await fetch(`${N8N_BASE}/webhook/shifthub-dashboard`, {
       method: 'GET',

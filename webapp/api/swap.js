@@ -47,7 +47,11 @@ module.exports = async (req, res) => {
   }
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
+  // The n8n swap workflow writes to two Google Sheets tabs and then notifies the
+  // supervisor before it answers, so a cold call takes 15-20s. The abort must be
+  // longer than that, otherwise the request is recorded upstream but the proxy
+  // reports a failure.
+  const timer = setTimeout(() => ctrl.abort(), 30000);
   try {
     const upstream = await fetch(`${N8N_BASE}/webhook/swap-request`, {
       method: 'POST',
@@ -69,10 +73,13 @@ module.exports = async (req, res) => {
       });
     }
   } catch (err) {
+    const aborted = err && (err.name === 'AbortError' || /abort/i.test(String(err.message || '')));
     res.status(502).json({
       ok: false,
-      error: 'upstream_unreachable',
-      message: 'Could not reach the n8n swap webhook. Phone the ward directly and try again later.',
+      error: aborted ? 'upstream_timeout' : 'upstream_unreachable',
+      message: aborted
+        ? 'The request took too long to confirm. It may still have been recorded - check the SwapRequests tab, or phone the ward.'
+        : 'Could not reach the n8n swap webhook. Phone the ward directly and try again later.',
       detail: String((err && err.message) || err).slice(0, 140),
     });
   } finally {
