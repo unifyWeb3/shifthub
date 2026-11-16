@@ -1,1 +1,1 @@
-flaggedAt,shiftId,date,startTime,ward,role,requiredCount,confirmedCount,missingCount,message
+flaggedAt,shiftId,date,startTime,ward,role,requiredCount,confirmedCount,missingCount,message,flagKey

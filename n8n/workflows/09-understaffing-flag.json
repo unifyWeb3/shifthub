@@ -175,7 +175,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Why Code: one summary alert for the supervisor + one record per understaffed shift for the Flags tab.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst today = DateTime.now().setZone(tz).startOf('day');\nconst horizon = today.plus({ days: 13 });\nconst rows = $('Read Rota').all().map((i) => i.json).filter((r) => {\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  return d.isValid && d >= today && d <= horizon;\n});\nconst byShift = new Map();\nfor (const r of rows) {\n  if (!byShift.has(r.shiftId)) {\n    byShift.set(r.shiftId, { shiftId: r.shiftId, date: r.date, startTime: r.startTime, ward: r.ward, role: r.role,\n      requiredCount: Number(r.requiredCount) || 1, confirmed: 0 });\n  }\n  if (String(r.status).toUpperCase() === 'CONFIRMED') byShift.get(r.shiftId).confirmed += 1;\n}\nconst under = [...byShift.values()]\n  .map((g) => ({ ...g, missingCount: Math.max(0, g.requiredCount - g.confirmed) }))\n  .filter((g) => g.missingCount > 0)\n  .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));\nif (!under.length) return [];\nconst flaggedAt = DateTime.now().setZone(tz).toISO();\nconst flagRows = under.map((g) => ({ flaggedAt, shiftId: g.shiftId, date: g.date, startTime: g.startTime,\n  ward: g.ward, role: g.role, requiredCount: g.requiredCount, confirmedCount: g.confirmed, missingCount: g.missingCount,\n  message: g.confirmed + '/' + g.requiredCount + ' confirmed - ' + g.missingCount + ' short' }));\nconst lines = under.map((g) =>\n  '- ' + g.shiftId + '  |  ' + g.date + ' ' + g.startTime + '  |  ' + g.ward + '  |  ' + g.role +\n  '  |  ' + g.confirmed + '/' + g.requiredCount + ' confirmed (' + g.missingCount + ' short)');\nconst alertText = [\n  'UNDERSTAFFED SHIFTS - next 14 days',\n  '',\n  'Facility: ' + facility,\n  '',\n].concat(lines).concat([\n  '',\n  'Each row above is flagged in the rota sheet and logged in the Flags tab. Assign cover or escalate now.',\n]).join('\\n');\nreturn [{ json: {\n  understaffed: flagRows, count: under.length, facilityName: facility,\n  supervisorEmail: cfg.supervisorEmail, supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ' + under.length + ' understaffed shift(s) in the next 14 days',\n} }];\n"
+        "jsCode": "// Why Code: one summary alert for the supervisor + one record per understaffed shift for the Flags tab.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst today = DateTime.now().setZone(tz).startOf('day');\nconst horizon = today.plus({ days: 13 });\nconst rows = $('Read Rota').all().map((i) => i.json).filter((r) => {\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  return d.isValid && d >= today && d <= horizon;\n});\nconst byShift = new Map();\nfor (const r of rows) {\n  if (!byShift.has(r.shiftId)) {\n    byShift.set(r.shiftId, { shiftId: r.shiftId, date: r.date, startTime: r.startTime, ward: r.ward, role: r.role,\n      requiredCount: Number(r.requiredCount) || 1, confirmed: 0 });\n  }\n  if (String(r.status).toUpperCase() === 'CONFIRMED') byShift.get(r.shiftId).confirmed += 1;\n}\nconst under = [...byShift.values()]\n  .map((g) => ({ ...g, missingCount: Math.max(0, g.requiredCount - g.confirmed) }))\n  .filter((g) => g.missingCount > 0)\n  .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));\nif (!under.length) return [];\nconst flaggedAt = DateTime.now().setZone(tz).toISO();\nconst flagRows = under.map((g) => ({ flagKey: g.shiftId + '|' + g.date, flaggedAt, shiftId: g.shiftId, date: g.date, startTime: g.startTime,\n  ward: g.ward, role: g.role, requiredCount: g.requiredCount, confirmedCount: g.confirmed, missingCount: g.missingCount,\n  message: g.confirmed + '/' + g.requiredCount + ' confirmed - ' + g.missingCount + ' short' }));\nconst lines = under.map((g) =>\n  '- ' + g.shiftId + '  |  ' + g.date + ' ' + g.startTime + '  |  ' + g.ward + '  |  ' + g.role +\n  '  |  ' + g.confirmed + '/' + g.requiredCount + ' confirmed (' + g.missingCount + ' short)');\nconst alertText = [\n  'UNDERSTAFFED SHIFTS - next 14 days',\n  '',\n  'Facility: ' + facility,\n  '',\n].concat(lines).concat([\n  '',\n  'Each row above is flagged in the rota sheet and logged in the Flags tab. Assign cover or escalate now.',\n]).join('\\n');\nreturn [{ json: {\n  understaffed: flagRows, count: under.length, facilityName: facility,\n  supervisorEmail: cfg.supervisorEmail, supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ' + under.length + ' understaffed shift(s) in the next 14 days',\n} }];\n"
       },
       "id": "f96bc26a-5c64-4666-b7cd-6e952a76cf0c",
       "name": "Summarize Understaffed",
@@ -238,7 +238,7 @@
     },
     {
       "parameters": {
-        "operation": "append",
+        "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
           "value": "PASTE_GOOGLE_SPREADSHEET_ID",
@@ -261,9 +261,12 @@
             "requiredCount": "={{ $json.requiredCount }}",
             "confirmedCount": "={{ $json.confirmedCount }}",
             "missingCount": "={{ $json.missingCount }}",
-            "message": "={{ $json.message }}"
+            "message": "={{ $json.message }}",
+            "flagKey": "={{ $json.flagKey }}"
           },
-          "matchingColumns": [],
+          "matchingColumns": [
+            "flagKey"
+          ],
           "schema": [
             {
               "id": "flaggedAt",
@@ -374,6 +377,17 @@
               "default": "",
               "readOnly": false,
               "removed": false
+            },
+            {
+              "id": "flagKey",
+              "displayName": "flagKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
             }
           ]
         },
@@ -389,7 +403,7 @@
         1320,
         130
       ],
-      "notes": "One row per understaffed shift, for the audit trail."
+      "notes": "One row per understaffed shift, for the audit trail. Upsert on the flagKey column (shiftId|date), so re-running the workflow updates the existing row instead of adding a duplicate. n8n only honours the FIRST matchingColumns entry, so the composite key has to live in one column."
     }
   ],
   "connections": {

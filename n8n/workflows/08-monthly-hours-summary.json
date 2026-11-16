@@ -102,7 +102,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Why Code: group-by-staff with interval math has no native node equivalent.\nconst tz = $('Pivot Settings').first().json.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst prev = now.minus({ months: 1 });\nconst ym = prev.toFormat('yyyy-MM');\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst sums = new Map();\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'CONFIRMED') continue;\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  if (!d.isValid || d.toFormat('yyyy-MM') !== ym) continue;\n  const s = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  let e = DateTime.fromFormat(String(r.date) + ' ' + String(r.endTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  if (e <= s) e = e.plus({ days: 1 });\n  const hrs = e.diff(s, 'minutes').minutes / 60;\n  const k = String(r.staffId || r.staffName || r.email);\n  if (!sums.has(k)) sums.set(k, { month: ym, staffId: r.staffId || '', staffName: r.staffName || '', email: r.email || '', shiftsConfirmed: 0, hours: 0 });\n  const agg = sums.get(k); agg.shiftsConfirmed += 1; agg.hours += hrs;\n}\nconst items = [...sums.values()].map((v) => ({ json: {\n  month: v.month, staffId: v.staffId, staffName: v.staffName, email: v.email,\n  shiftsConfirmed: v.shiftsConfirmed, hoursWorked: Number(v.hours.toFixed(2)),\n  generatedAt: now.toISO(),\n} }));\nreturn items;\n"
+        "jsCode": "// Why Code: group-by-staff with interval math has no native node equivalent.\nconst tz = $('Pivot Settings').first().json.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst prev = now.minus({ months: 1 });\nconst ym = prev.toFormat('yyyy-MM');\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst sums = new Map();\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'CONFIRMED') continue;\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  if (!d.isValid || d.toFormat('yyyy-MM') !== ym) continue;\n  const s = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd H:mm', { zone: tz });\n  let e = DateTime.fromFormat(String(r.date) + ' ' + String(r.endTime), 'yyyy-MM-dd H:mm', { zone: tz });\n  if (e <= s) e = e.plus({ days: 1 });\n  const hrs = e.diff(s, 'minutes').minutes / 60;\n  const k = String(r.staffId || r.staffName || r.email);\n  if (!sums.has(k)) sums.set(k, { month: ym, staffId: r.staffId || '', staffName: r.staffName || '', email: r.email || '', shiftsConfirmed: 0, hours: 0 });\n  const agg = sums.get(k); agg.shiftsConfirmed += 1; agg.hours += hrs;\n}\nconst items = [...sums.values()].map((v) => ({ json: {\n  month: v.month, staffId: v.staffId, staffName: v.staffName, email: v.email, summaryKey: v.month + '|' + v.staffId,\n  shiftsConfirmed: v.shiftsConfirmed, hoursWorked: Number(v.hours.toFixed(2)),\n  generatedAt: now.toISO(),\n} }));\nreturn items;\n"
       },
       "id": "462fe471-ab45-4759-b060-ab0bb393a5bf",
       "name": "Summarize Per Staff",
@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "operation": "append",
+        "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
           "value": "PASTE_GOOGLE_SPREADSHEET_ID",
@@ -135,9 +135,12 @@
             "staffName": "={{ $json.staffName }}",
             "shiftsConfirmed": "={{ $json.shiftsConfirmed }}",
             "hoursWorked": "={{ $json.hoursWorked }}",
-            "generatedAt": "={{ $json.generatedAt }}"
+            "generatedAt": "={{ $json.generatedAt }}",
+            "summaryKey": "={{ $json.summaryKey }}"
           },
-          "matchingColumns": [],
+          "matchingColumns": [
+            "summaryKey"
+          ],
           "schema": [
             {
               "id": "month",
@@ -204,6 +207,17 @@
               "default": "",
               "readOnly": false,
               "removed": false
+            },
+            {
+              "id": "summaryKey",
+              "displayName": "summaryKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "default": "",
+              "readOnly": false,
+              "removed": false
             }
           ]
         },
@@ -219,7 +233,7 @@
         1100,
         200
       ],
-      "notes": "One row per staff member, per month."
+      "notes": "One row per staff member, per month. Upsert on the summaryKey column (month|staffId), so re-running the workflow updates the existing row instead of adding a duplicate. n8n only honours the FIRST matchingColumns entry, so the composite key has to live in one column."
     },
     {
       "parameters": {
@@ -267,7 +281,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Why Code: supervisor table report needs the same aggregation, rendered as text; no native node formats tables.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst prev = now.minus({ months: 1 });\nconst ym = prev.toFormat('yyyy-MM');\nconst monthLabel = prev.toFormat('MMMM yyyy');\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst sums = new Map();\nlet totalShifts = 0, totalHours = 0;\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'CONFIRMED') continue;\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  if (!d.isValid || d.toFormat('yyyy-MM') !== ym) continue;\n  const s = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  let e = DateTime.fromFormat(String(r.date) + ' ' + String(r.endTime), 'yyyy-MM-dd HH:mm', { zone: tz });\n  if (e <= s) e = e.plus({ days: 1 });\n  const hrs = e.diff(s, 'minutes').minutes / 60;\n  const k = String(r.staffId || r.staffName || r.email);\n  if (!sums.has(k)) sums.set(k, { name: r.staffName || k, shifts: 0, hours: 0 });\n  const agg = sums.get(k); agg.shifts += 1; agg.hours += hrs;\n  totalShifts += 1; totalHours += hrs;\n}\nconst line = '-'.repeat(56);\nconst body = [\n  'ShiftHub - Monthly Hours Summary',\n  '',\n  'Facility: ' + facility,\n  'Month:    ' + monthLabel + ' (' + ym + ')',\n  'Generated: ' + now.toFormat('yyyy-MM-dd HH:mm'),\n  '',\n  line,\n  'Staff'.padEnd(34) + 'Shifts'.padStart(8) + 'Hours'.padStart(12),\n  line,\n];\nfor (const v of [...sums.values()].sort((a, b) => b.hours - a.hours)) {\n  body.push(String(v.name).padEnd(34).slice(0, 33) + String(v.shifts).padStart(8) + v.hours.toFixed(1).padStart(12));\n}\nbody.push(line);\nbody.push('TOTAL'.padEnd(34) + String(totalShifts).padStart(8) + totalHours.toFixed(1).padStart(12));\nbody.push(line);\nbody.push('');\nbody.push('Per-staff hours are also stored in the MonthlySummary tab and emailed to each staff member where sendStaffCopies = yes.');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  subject: '[ShiftHub] Monthly hours summary - ' + monthLabel,\n  message: body.join('\\n'),\n} }];\n"
+        "jsCode": "// Why Code: supervisor table report needs the same aggregation, rendered as text; no native node formats tables.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst now = DateTime.now().setZone(tz);\nconst prev = now.minus({ months: 1 });\nconst ym = prev.toFormat('yyyy-MM');\nconst monthLabel = prev.toFormat('MMMM yyyy');\nconst rows = $('Read Rota').all().map((i) => i.json);\nconst sums = new Map();\nlet totalShifts = 0, totalHours = 0;\nfor (const r of rows) {\n  if (String(r.status).toUpperCase() !== 'CONFIRMED') continue;\n  const d = DateTime.fromFormat(String(r.date), 'yyyy-MM-dd', { zone: tz });\n  if (!d.isValid || d.toFormat('yyyy-MM') !== ym) continue;\n  const s = DateTime.fromFormat(String(r.date) + ' ' + String(r.startTime), 'yyyy-MM-dd H:mm', { zone: tz });\n  let e = DateTime.fromFormat(String(r.date) + ' ' + String(r.endTime), 'yyyy-MM-dd H:mm', { zone: tz });\n  if (e <= s) e = e.plus({ days: 1 });\n  const hrs = e.diff(s, 'minutes').minutes / 60;\n  const k = String(r.staffId || r.staffName || r.email);\n  if (!sums.has(k)) sums.set(k, { name: r.staffName || k, shifts: 0, hours: 0 });\n  const agg = sums.get(k); agg.shifts += 1; agg.hours += hrs;\n  totalShifts += 1; totalHours += hrs;\n}\nconst line = '-'.repeat(56);\nconst body = [\n  'ShiftHub - Monthly Hours Summary',\n  '',\n  'Facility: ' + facility,\n  'Month:    ' + monthLabel + ' (' + ym + ')',\n  'Generated: ' + now.toFormat('yyyy-MM-dd H:mm'),\n  '',\n  line,\n  'Staff'.padEnd(34) + 'Shifts'.padStart(8) + 'Hours'.padStart(12),\n  line,\n];\nfor (const v of [...sums.values()].sort((a, b) => b.hours - a.hours)) {\n  body.push(String(v.name).padEnd(34).slice(0, 33) + String(v.shifts).padStart(8) + v.hours.toFixed(1).padStart(12));\n}\nbody.push(line);\nbody.push('TOTAL'.padEnd(34) + String(totalShifts).padStart(8) + totalHours.toFixed(1).padStart(12));\nbody.push(line);\nbody.push('');\nbody.push('Per-staff hours are also stored in the MonthlySummary tab and emailed to each staff member where sendStaffCopies = yes.');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  subject: '[ShiftHub] Monthly hours summary - ' + monthLabel,\n  message: body.join('\\n'),\n} }];\n"
       },
       "id": "20dee7d9-c27e-4216-a0de-6c17155cda1b",
       "name": "Build Supervisor Report",

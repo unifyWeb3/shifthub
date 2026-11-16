@@ -33,6 +33,12 @@ time; each later run takes minutes.
 5. Open the `Settings` tab and edit the values (supervisor email, Telegram chat id, `fromEmail`,
    facility name).
 
+> **Use real, deliverable email addresses.** `example.com` is a reserved domain — every mail to
+> `anything@example.com` bounces with *"Address not found"*, and no reminder reaches the staff.
+> Put a mailbox you can actually open in `supervisorEmail` and `fromEmail`, and put a real address
+> in each staff member's `email` column on the `Rota` tab. The demo seed already uses
+> `akolaefatoki@gmail.com` for every staff row.
+
 **Or by hand:** <https://sheets.google.com> → **Blank spreadsheet**, then create the five tabs
 and copy the headers from [`sheets/README.md`](../sheets/README.md), and import
 `sheets/settings.csv` into `Settings`.

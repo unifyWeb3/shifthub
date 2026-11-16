@@ -21,7 +21,7 @@ shiftId,date,startTime,endTime,ward,role,requiredCount,staffId,staffName,email,t
 | `role` | Role required | `Nurse` |
 | `requiredCount` | How many staff must be confirmed for this shift (same value on every row of the shift) | `2` |
 | `staffId` / `staffName` | Staff identity | `STF-001`, `Adaeze Nnamdi` |
-| `email` | Used for reminders + YES-by-email | `adaeze.nnamdi@example.com` |
+| `email` | Used for reminders + YES-by-email. Must be a real, deliverable address — `example.com` is a reserved domain and every mail to it bounces. | `staff@hospital.org` |
 | `telegramChatId` | Numeric Telegram chat id (get it from @userinfobot) | `100000001` |
 | `assignmentId` | Unique row id — the update key for every write. Must be unique in the sheet: the workflows match on it when they stamp a row. | `ASG-K3F9A2-1001` |
 | `status` | `PENDING`, `CONFIRMED`, `DECLINED` or `SWAPPED` | `PENDING` |
@@ -37,18 +37,18 @@ shiftId,date,startTime,endTime,ward,role,requiredCount,staffId,staffName,email,t
 |---|---|---|
 | `facilityName` | `Federal Medical Centre` | used in every message |
 | `supervisorName` | `Dr. A. Supervisor` | |
-| `supervisorEmail` | `supervisor@example.com` | receives escalations, flags, monthly report |
+| `supervisorEmail` | `supervisor@your-real-mailbox.com` | receives escalations, flags, monthly report |
 | `supervisorTelegramChatId` | `100000000` | numeric chat id |
-| `fromEmail` | `shifthub@example.com` | the SMTP account the mails are sent from |
+| `fromEmail` | `shifthub@your-real-mailbox.com` | the SMTP account the mails are sent from |
 | `publicBaseUrl` | `http://localhost:5678` | base URL for confirmation links; use your public n8n URL in production |
 | `sendStaffCopies` | `yes` | `no` stops the per-staff monthly email |
 | `timezone` | `Africa/Lagos` | must match the n8n instance timezone |
 
 **3. `SwapRequests`** — `requestId,createdAt,assignmentId,shiftId,date,startTime,endTime,ward,role,requestorName,requestorContact,targetPreference,reason,status`
 
-**4. `Flags`** — `flaggedAt,shiftId,date,startTime,ward,role,requiredCount,confirmedCount,missingCount,message`
+**4. `Flags`** — `flaggedAt,shiftId,date,startTime,ward,role,requiredCount,confirmedCount,missingCount,message,flagKey`
 
-**5. `MonthlySummary`** — `month,staffId,staffName,shiftsConfirmed,hoursWorked,generatedAt`
+**5. `MonthlySummary`** — `month,staffId,staffName,shiftsConfirmed,hoursWorked,generatedAt,summaryKey`
 
 ## Files here
 
@@ -82,7 +82,7 @@ role: Nurse
 requiredCount: 1
 staffId: STF-TEST
 staffName: Test Nurse
-email: you@example.com
+email: you@your-real-mailbox.com
 telegramChatId: 100000001
 assignmentId: ASG-TEST-1
 status: PENDING

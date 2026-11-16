@@ -23,3 +23,5 @@ Thumbs.db
 # misc
 *.log
 .vercel
+__pycache__/
+*.pyc
