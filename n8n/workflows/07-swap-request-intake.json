@@ -347,8 +347,7 @@
         1100,
         140
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Telegram notification. Failure stops the workflow and fires the Error Notifier (12) — never silent."
     },
     {
       "parameters": {
@@ -472,7 +471,8 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "Africa/Lagos"
+    "timezone": "Africa/Lagos",
+    "errorWorkflow": "91IrQ5e2EuSVfvmM"
   },
   "pinData": {}
 }

@@ -91,7 +91,7 @@ def main() -> None:
             (workflow_id,),
         ).fetchone()
         conn.close()
-        if row and row[2] >= now[:19]:
+        if row and row[2] and row[2] >= now[:19]:
             print(f"execution: {row}")
             return
         time.sleep(5)

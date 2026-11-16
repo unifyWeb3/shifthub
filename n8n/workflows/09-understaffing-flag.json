@@ -218,8 +218,7 @@
         1100,
         -20
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Telegram understaffing alert. Failure stops the workflow and fires the Error Notifier (12)."
     },
     {
       "parameters": {
@@ -502,7 +501,8 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "Africa/Lagos"
+    "timezone": "Africa/Lagos",
+    "errorWorkflow": "91IrQ5e2EuSVfvmM"
   },
   "pinData": {}
 }

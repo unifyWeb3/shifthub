@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "# ShiftHub — 3-Hour Unconfirmed Escalation\n\nTHE SIWES 'done when' flow.\n\nEvery 15 minutes, checks for shifts starting in ~3 hours whose confirmation is still PENDING. Alerts the SUPERVISOR by email + Telegram with the names, wards and times, and stamps `escalation3hSent` so the alert goes out once.",
+        "content": "# ShiftHub — 3-Hour Unconfirmed Escalation\n\nTHE SIWES 'done when' flow.\n\nEvery 15 minutes, checks for shifts starting in ~3 hours whose confirmation is still PENDING. Alerts the SUPERVISOR by email + Telegram with the names, wards and times, and stamps `escalation3hSent` so the alert goes out once.\n\n**Critical**: the stamp fires ONLY after BOTH Email AND Telegram deliver successfully. If either fails, the workflow stops and the Error Workflow alerts the supervisor.",
         "height": 230,
         "width": 400,
         "color": 4
@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Why Code: aggregate N at-risk rows into ONE supervisor alert; Summarize cannot build formatted prose.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst items = $input.all().map((i) => i.json);\nif (!items.length) return [];\nconst lines = items.map((r) =>\n  '- ' + r.staffName + '  |  ' + r.date + ' ' + r.startTime + '-' + r.endTime +\n  '  |  ' + r.ward + '  |  Role: ' + r.role + '  |  starts in ~' + r.minutesUntilStart + ' min  |  Status: UNCONFIRMED');\nconst alertText = [\n  'SHIFT ALERT - UNCONFIRMED SHIFT AT 3-HOUR MARK',\n  '',\n  'Facility: ' + facility,\n  'Time:     ' + DateTime.now().setZone(tz).toFormat('yyyy-MM-dd H:mm'),\n  '',\n  'The following shift assignment(s) start in about THREE HOURS and are still UNCONFIRMED:',\n  '',\n].concat(lines).concat([\n  '',\n  'ACTION REQUIRED: phone the staff member(s) now. If they cannot attend, arrange a qualified replacement immediately.',\n  'Reply to staff reminders with YES when they confirm; this alert stops once the shift is confirmed in the rota sheet.',\n]).join('\\n');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ALERT: ' + items.length + ' unconfirmed shift(s) at the 3-hour mark',\n  atRiskCount: items.length,\n  assignments: items.map((r) => ({ assignmentId: r.assignmentId, staffName: r.staffName,\n    date: r.date, startTime: r.startTime, endTime: r.endTime, ward: r.ward, role: r.role })),\n} }];\n"
+        "jsCode": "// Why Code: aggregate N at-risk rows into ONE supervisor alert; Summarize cannot build formatted prose.\nconst cfg = $('Pivot Settings').first().json;\nconst facility = cfg.facilityName || 'the facility';\nconst tz = cfg.timezone || 'Africa/Lagos';\nconst items = $input.all().map((i) => i.json);\nif (!items.length) return [];\nconst lines = items.map((r) =>\n  '- ' + r.staffName + '  |  ' + r.date + ' ' + r.startTime + '-' + r.endTime +\n  '  |  ' + r.ward + '  |  Role: ' + r.role + '  |  starts in ~' + r.minutesUntilStart + ' min  |  Status: UNCONFIRMED');\nconst alertText = [\n  'SHIFT ALERT — UNCONFIRMED ASSIGNMENTS AT 3-HOUR MARK',\n  '',\n  'Facility: ' + facility,\n  'Time:     ' + DateTime.now().setZone(tz).toFormat('yyyy-MM-dd H:mm'),\n  '',\n  'The following shift assignment(s) start in approximately THREE HOURS and remain UNCONFIRMED:',\n  '',\n].concat(lines).concat([\n  '',\n  'ACTION REQUIRED: Contact the staff member(s) immediately. If they cannot attend, arrange a qualified replacement without delay.',\n  'This alert will not repeat once the shift is confirmed in the rota sheet.',\n]).join('\\n');\nreturn [{ json: {\n  supervisorEmail: cfg.supervisorEmail,\n  supervisorTelegramChatId: cfg.supervisorTelegramChatId,\n  alertText,\n  subject: '[ShiftHub] ALERT: ' + items.length + ' unconfirmed shift assignment(s) at 3-hour mark',\n  atRiskCount: items.length,\n  assignments: items.map((r) => ({ assignmentId: r.assignmentId, staffName: r.staffName,\n    date: r.date, startTime: r.startTime, endTime: r.endTime, ward: r.ward, role: r.role })),\n} }];\n"
       },
       "id": "c2a633d9-2af4-4156-b798-cb2d8cd14336",
       "name": "Build Supervisor Alert",
@@ -141,8 +141,7 @@
         1340,
         -100
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Telegram notification. Failure stops the workflow (Error Workflow catches it)."
     },
     {
       "parameters": {
@@ -164,7 +163,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Why Code: the Email node replaces the item payload and the native Split Out node can only read\n// fields from its own input. Re-expanding the rows from the aggregation node keeps the\n// 'stamp only after the alert was delivered' ordering without losing the per-row assignment ids.\nconst alert = $('Build Supervisor Alert').first().json;\nconst rows = Array.isArray(alert.assignments) ? alert.assignments : [];\nreturn rows.map((r) => ({ json: r }));\n"
+        "jsCode": "// Why Code: runs after BOTH Telegram and Email succeeded (fan-in).\n// Re-expands the assignment rows for the stamp.\nconst alert = $('Build Supervisor Alert').first().json;\nconst rows = Array.isArray(alert.assignments) ? alert.assignments : [];\nreturn rows.map((r) => ({ json: r }));\n"
       },
       "id": "5f0d4c7a-1b3e-4c8a-9f52-6d1e2a7b4c30",
       "name": "Restore At-Risk Rows",
@@ -172,9 +171,9 @@
       "typeVersion": 2,
       "position": [
         1580,
-        60
+        0
       ],
-      "notes": "Runs after either notification channel delivered, so the stamp is written when the supervisor was reached by Telegram OR email (never before)."
+      "notes": "Runs after BOTH Email AND Telegram succeeded (fan-in). Re-expands rows for the stamp."
     },
     {
       "parameters": {
@@ -231,9 +230,9 @@
       "typeVersion": 4.5,
       "position": [
         1820,
-        60
+        0
       ],
-      "notes": "Stamps the row so the supervisor is alerted only once per shift."
+      "notes": "Stamps the row ONLY after both channels delivered."
     }
   ],
   "connections": {
@@ -308,6 +307,17 @@
         ]
       ]
     },
+    "Alert Supervisor (Telegram)": {
+      "main": [
+        [
+          {
+            "node": "Restore At-Risk Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Alert Supervisor (Email)": {
       "main": [
         [
@@ -329,22 +339,12 @@
           }
         ]
       ]
-    },
-    "Alert Supervisor (Telegram)": {
-      "main": [
-        [
-          {
-            "node": "Restore At-Risk Rows",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "Africa/Lagos"
+    "timezone": "Africa/Lagos",
+    "errorWorkflow": "91IrQ5e2EuSVfvmM"
   },
   "pinData": {}
 }

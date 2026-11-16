@@ -145,8 +145,7 @@
         1120,
         200
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Telegram reminder. Failure stops the workflow and fires the Error Notifier (12)."
     },
     {
       "parameters": {
@@ -205,7 +204,7 @@
         1340,
         120
       ],
-      "notes": "Stamps the row so staff are not double-reminded."
+      "notes": "Stamps the row after the reminder went out (fan-in from Email + Telegram). Failure of either channel stops the run before this — Error Notifier fires."
     }
   ],
   "connections": {
@@ -279,11 +278,23 @@
           }
         ]
       ]
+    },
+    "Telegram Staff (2h)": {
+      "main": [
+        [
+          {
+            "node": "Mark 2h Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "Africa/Lagos"
+    "timezone": "Africa/Lagos",
+    "errorWorkflow": "91IrQ5e2EuSVfvmM"
   },
   "pinData": {}
 }

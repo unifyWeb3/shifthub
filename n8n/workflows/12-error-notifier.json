@@ -112,8 +112,7 @@
         660,
         320
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Last-resort Telegram alert. Failure marks this error-notifier run as failed — loud, never silent."
     }
   ],
   "connections": {

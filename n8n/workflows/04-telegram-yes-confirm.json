@@ -210,8 +210,7 @@
         1540,
         60
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Telegram reply to the staff member. Failure stops the run and fires the Error Notifier (12) — never silent."
     },
     {
       "parameters": {
@@ -226,8 +225,7 @@
         1300,
         180
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Telegram reply to the staff member. Failure stops the run and fires the Error Notifier (12) — never silent."
     },
     {
       "parameters": {
@@ -242,8 +240,7 @@
         640,
         320
       ],
-      "notes": "Best-effort Telegram notification; failure does not stop the run.",
-      "onError": "continueErrorOutput"
+      "notes": "Telegram reply to the staff member. Failure stops the run and fires the Error Notifier (12) — never silent."
     }
   ],
   "connections": {
@@ -341,7 +338,8 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "Africa/Lagos"
+    "timezone": "Africa/Lagos",
+    "errorWorkflow": "91IrQ5e2EuSVfvmM"
   },
   "pinData": {}
 }
